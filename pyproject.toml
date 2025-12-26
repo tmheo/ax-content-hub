@@ -1,0 +1,155 @@
+[project]
+name = "ax-content-hub"
+version = "0.1.0"
+description = "AX Content Hub - AI Transformation content curation bot for Slack"
+readme = "README.md"
+requires-python = ">=3.12"
+license = {text = "MIT"}
+authors = [
+    {name = "AX Content Hub Team"}
+]
+
+dependencies = [
+    # Core Framework
+    "fastapi>=0.100.0",
+    "uvicorn>=0.20.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "python-dotenv>=1.0.0",
+    "structlog>=23.0.0",
+    # Google ADK & AI
+    "google-adk>=1.20.0",
+    "cognee>=0.1.0",
+    "cognee-integration-google-adk>=0.1.0",
+    # Google Cloud
+    "google-cloud-firestore>=2.0.0",
+    "google-cloud-tasks>=2.20.0",
+    # Slack
+    "slack-sdk>=3.20.0",
+    # Content Collection
+    "feedparser>=6.0.0",
+    "youtube-transcript-api>=0.6.0",
+    "playwright>=1.40.0",
+    # Utilities
+    "httpx>=0.27.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.3.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.0.0",
+    "ruff>=0.8.0",
+    "mypy>=1.0.0",
+    "pre-commit>=4.0.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+# ============================================================================
+# Ruff configuration (replaces black, isort, and provides linting)
+# ============================================================================
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+extend-exclude = [
+    ".venv",
+    "venv",
+    ".mypy_cache",
+    ".pytest_cache",
+    "__pycache__",
+    "*.egg-info",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # Pyflakes (F401: unused imports, F841: unused variables)
+    "I",      # isort (import sorting)
+    "TID",    # flake8-tidy-imports (절대 임포트 강제)
+    "UP",     # pyupgrade
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "RUF",    # Ruff-specific rules
+]
+
+ignore = [
+    "E501",   # line-too-long (ruff format handles this)
+    "B008",   # FastAPI Depends() pattern (normal usage)
+    "RUF003", # ambiguous characters in comments (Korean comments)
+]
+
+fixable = ["ALL"]
+unfixable = []
+
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+combine-as-imports = true
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"  # 절대 임포트 강제
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "ARG",     # Unused function args (fixtures)
+    "S101",    # Use of assert
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+
+# ============================================================================
+# mypy configuration
+# ============================================================================
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = false
+warn_unused_configs = true
+warn_unused_ignores = false
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+
+[[tool.mypy.overrides]]
+module = "google.adk.*"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "src.agent.*"
+disallow_untyped_defs = false
+warn_return_any = false
+
+# ============================================================================
+# pytest configuration
+# ============================================================================
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-v --tb=short"
+markers = [
+    "integration: marks tests as integration tests (require external services)",
+]
+filterwarnings = [
+    "ignore:Pydantic serializer warnings:UserWarning",
+    "ignore:coroutine .* was never awaited:RuntimeWarning",
+]
+
+# ============================================================================
+# dependency-groups (uv)
+# ============================================================================
+[dependency-groups]
+dev = [
+    "pre-commit>=4.0.0",
+]

@@ -1,0 +1,32 @@
+repos:
+  # ---- Ruff: Linting + Import Sorting + 절대 임포트 강제 ----
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.8
+    hooks:
+      # Linter
+      - id: ruff
+        args:
+          - --fix
+          - --exit-non-zero-on-fix
+        files: '^(src|tests)/.*\.py$'
+
+      # Formatter
+      - id: ruff-format
+        files: '^(src|tests)/.*\.py$'
+
+  # ---- 타입 체크 ----
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        language: system
+        entry: bash -c 'STAGED_PYTHON_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep "^src/.*\.py$"); if [ -z "$STAGED_PYTHON_FILES" ]; then echo "No staged Python files in src/ to check with mypy."; exit 0; fi; uv run mypy --config-file=pyproject.toml --cache-dir=.mypy_cache/pre-commit $STAGED_PYTHON_FILES'
+        pass_filenames: false
+
+  # ---- YAML, JSON 정렬 ----
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v3.1.0
+    hooks:
+      - id: prettier
+        files: '\.(yml|yaml|json)$'
+        exclude: '^\.beads/'
