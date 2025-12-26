@@ -53,9 +53,10 @@ RESULT=$(gh api graphql \
     -F pr="$PR")
 
 # Filter for CodeRabbit threads only
+# Note: GraphQL returns "coderabbitai" without [bot] suffix (unlike REST API)
 if [[ "$FILTER" == "--unresolved-only" ]]; then
     echo "$RESULT" | jq '[.data.repository.pullRequest.reviewThreads.nodes[] |
-        select(.comments.nodes[0].author.login == "coderabbitai[bot]") |
+        select(.comments.nodes[0].author.login == "coderabbitai") |
         select(.isResolved == false) |
         {
             thread_id: .id,
@@ -68,7 +69,7 @@ if [[ "$FILTER" == "--unresolved-only" ]]; then
         }]'
 else
     echo "$RESULT" | jq '[.data.repository.pullRequest.reviewThreads.nodes[] |
-        select(.comments.nodes[0].author.login == "coderabbitai[bot]") |
+        select(.comments.nodes[0].author.login == "coderabbitai") |
         {
             thread_id: .id,
             is_resolved: .isResolved,

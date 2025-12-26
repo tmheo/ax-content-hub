@@ -165,8 +165,8 @@
 
 **Purpose**: 문서화 및 마무리
 
-- [ ] T029 [P] CLAUDE.md 업데이트 (Phase 0 완료 반영)
-- [ ] T030 [P] README.md 빠른 시작 섹션 업데이트
+- [x] T029 [P] CLAUDE.md 업데이트 (Phase 0 완료 반영)
+- [x] T030 [P] README.md 빠른 시작 섹션 업데이트
 - [x] T031 전체 Quality Gates 통과 확인 (ruff, mypy, pytest)
 - [x] T032 [추가] GitHub Actions CI 워크플로우 추가
 
@@ -221,8 +221,8 @@ Polish (Phase 9)
 | Cognee | 4 | 4 ✅ | 0 |
 | FastAPI | 3 | 3 ✅ | 0 |
 | Integration | 4 | 4 ✅ | 0 |
-| Polish | 4 | 2 | 2 (T029, T030) |
-| **Total** | **32** | **30** | **2** |
+| Polish | 4 | 4 ✅ | 0 |
+| **Total** | **32** | **32 ✅** | **0** |
 
 ---
 

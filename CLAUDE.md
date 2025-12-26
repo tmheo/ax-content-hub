@@ -44,56 +44,64 @@ uv run pre-commit install              # Git hooks 설치 (최초 1회)
 uv run pre-commit run --all-files      # 전체 파일 검사
 ```
 
+## 현재 구현 상태
+
+**Phase 0 완료** - 프로젝트 초기화 및 기반 인프라
+
+| 구성요소 | 상태 | 설명 |
+|----------|------|------|
+| Settings | ✅ | Pydantic Settings 기반 환경 설정 |
+| Logging | ✅ | structlog JSON 로깅 |
+| Firestore | ✅ | CRUD 클라이언트 (에뮬레이터 지원) |
+| Slack | ✅ | 메시지 전송 클라이언트 |
+| Tasks | ✅ | Cloud Tasks / direct 모드 |
+| Cognee | ✅ | 메모리 도구 래퍼 (지연 로딩) |
+| FastAPI | ✅ | /health 엔드포인트 |
+| CI/CD | ✅ | GitHub Actions (ruff, mypy, pytest) |
+
 ## 프로젝트 구조
 
 ```
 src/
 ├── api/                        # FastAPI 앱
-│   ├── main.py                 # 라이프사이클 관리
-│   ├── scheduler.py            # Cloud Scheduler 엔드포인트 (/internal/*)
-│   └── internal_tasks.py       # Cloud Tasks 콜백
+│   └── main.py                 # lifespan, /health ✅
 │
 ├── agent/                      # Google ADK 에이전트
-│   ├── content_hub_agent.py    # 메인 오케스트레이터
-│   ├── core/
-│   │   ├── session_service.py
-│   │   └── cognee_tools.py     # Cognee 메모리 도구 (add_memory, search_memory)
-│   └── domains/
-│       ├── collector/          # 수집 에이전트
-│       │   └── tools/          # fetch_rss, fetch_youtube, scrape_web
-│       ├── processor/          # 처리 에이전트
-│       │   └── tools/          # translate, summarize, score_relevance, classify
-│       └── distributor/        # 배포 에이전트
-│           └── tools/          # send_slack_digest
-│
-├── services/                   # 비즈니스 로직
-│   ├── content_pipeline.py
-│   ├── digest_service.py
-│   └── quality_filter.py
-│
-├── models/                     # Pydantic 모델
-│   ├── source.py               # 콘텐츠 소스 (RSS, YouTube, 웹)
-│   ├── content.py              # 수집/처리된 콘텐츠
-│   ├── company.py              # 회사 프로필 (맞춤화용)
-│   ├── subscription.py         # 구독 정보
-│   └── digest.py               # 발송된 다이제스트
+│   └── core/
+│       └── cognee_tools.py     # Cognee 메모리 도구 ✅
 │
 ├── adapters/                   # 외부 서비스 클라이언트
-│   ├── firestore_client.py
-│   ├── gemini_client.py
-│   ├── slack_client.py
-│   ├── tasks_client.py
-│   └── embedding_client.py
-│
-├── repositories/               # 데이터 접근
-│   ├── source_repo.py
-│   ├── content_repo.py
-│   ├── company_repo.py
-│   └── subscription_repo.py
+│   ├── firestore_client.py     # ✅
+│   ├── slack_client.py         # ✅
+│   └── tasks_client.py         # ✅
 │
 └── config/
-    ├── settings.py             # Pydantic Settings
-    └── logging.py              # structlog
+    ├── settings.py             # Pydantic Settings ✅
+    └── logging.py              # structlog ✅
+
+tests/
+├── conftest.py                 # 공통 fixtures
+└── unit/
+    ├── adapters/               # 어댑터 테스트 (30 tests)
+    ├── agent/
+    ├── api/
+    └── config/
+```
+
+### 향후 구현 예정 (Phase 1+)
+
+```
+src/
+├── agent/
+│   ├── content_hub_agent.py    # 메인 오케스트레이터
+│   └── domains/
+│       ├── collector/          # 수집 에이전트
+│       ├── processor/          # 처리 에이전트
+│       └── distributor/        # 배포 에이전트
+│
+├── services/                   # 비즈니스 로직
+├── models/                     # Pydantic 모델
+└── repositories/               # 데이터 접근
 ```
 
 ## 아키텍처
