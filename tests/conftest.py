@@ -2,7 +2,7 @@
 
 import os
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -20,22 +20,31 @@ def set_test_env() -> None:
 
 @pytest.fixture
 def mock_firestore_client() -> MagicMock:
-    """Mock Firestore client."""
+    """Mock Firestore client.
+
+    Note: FirestoreClient uses synchronous methods, so we use MagicMock (not AsyncMock).
+    """
     client = MagicMock()
-    client.collection.return_value.document.return_value.get = AsyncMock(
-        return_value=MagicMock(exists=True, to_dict=lambda: {"test": "data"})
+    mock_doc = MagicMock()
+    mock_doc.exists = True
+    mock_doc.to_dict.return_value = {"test": "data"}
+    client.collection.return_value.document.return_value.get = MagicMock(
+        return_value=mock_doc
     )
-    client.collection.return_value.document.return_value.set = AsyncMock()
-    client.collection.return_value.document.return_value.update = AsyncMock()
-    client.collection.return_value.document.return_value.delete = AsyncMock()
+    client.collection.return_value.document.return_value.set = MagicMock()
+    client.collection.return_value.document.return_value.update = MagicMock()
+    client.collection.return_value.document.return_value.delete = MagicMock()
     return client
 
 
 @pytest.fixture
 def mock_slack_client() -> MagicMock:
-    """Mock Slack client."""
+    """Mock Slack client.
+
+    Note: SlackClient uses synchronous methods, so we use MagicMock (not AsyncMock).
+    """
     client = MagicMock()
-    client.chat_postMessage = AsyncMock(
+    client.chat_postMessage = MagicMock(
         return_value={"ok": True, "ts": "1234567890.123456"}
     )
     return client

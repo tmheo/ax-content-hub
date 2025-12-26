@@ -19,11 +19,11 @@
 
 **Purpose**: 프로젝트 구조 및 기본 설정
 
-- [ ] T001 프로젝트 디렉토리 구조 생성 (`src/`, `tests/`, 하위 패키지)
-- [ ] T002 pyproject.toml 의존성 업데이트 (fastapi, structlog, cognee 등)
-- [ ] T003 [P] docker-compose.yml 생성 (Firestore 에뮬레이터)
-- [ ] T004 [P] conftest.py 생성 (pytest 공통 fixtures)
-- [ ] T005 [P] .env.example 생성 (환경 변수 템플릿)
+- [x] T001 프로젝트 디렉토리 구조 생성 (`src/`, `tests/`, 하위 패키지)
+- [x] T002 pyproject.toml 의존성 업데이트 (fastapi, structlog, cognee 등)
+- [x] T003 [P] docker-compose.yml 생성 (Firestore 에뮬레이터)
+- [x] T004 [P] conftest.py 생성 (pytest 공통 fixtures) → `tests/conftest.py`
+- [x] T005 [P] .env.example 생성 (환경 변수 템플릿)
 
 ---
 
@@ -37,14 +37,14 @@
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T006 [P] tests/unit/config/test_settings.py 작성
-- [ ] T007 [P] tests/unit/config/test_logging.py 작성
+- [x] T006 [P] tests/unit/config/test_settings.py 작성
+- [x] T007 [P] tests/unit/config/test_logging.py 작성
 
 ### Implementation for Foundational
 
-- [ ] T008 [US2] src/config/settings.py 구현 (Pydantic Settings)
-- [ ] T009 [US3] src/config/logging.py 구현 (structlog 설정)
-- [ ] T010 src/config/__init__.py 생성 (모듈 export)
+- [x] T008 [US2] src/config/settings.py 구현 (Pydantic Settings)
+- [x] T009 [US3] src/config/logging.py 구현 (structlog 설정)
+- [x] T010 src/config/__init__.py 생성 (모듈 export)
 
 **Checkpoint**: Settings + Logging 완료, 테스트 통과
 
@@ -58,12 +58,12 @@
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T011 tests/unit/adapters/test_firestore_client.py 작성
+- [x] T011 tests/unit/adapters/test_firestore_client.py 작성
 
 ### Implementation for User Story 4
 
-- [ ] T012 [US4] src/adapters/firestore_client.py 구현
-- [ ] T013 [US4] src/adapters/__init__.py 생성 (모듈 export)
+- [x] T012 [US4] src/adapters/firestore_client.py 구현
+- [x] T013 [US4] src/adapters/__init__.py 생성 (모듈 export)
 
 **Checkpoint**: Firestore 클라이언트 완료, 단위 테스트 통과
 
@@ -77,11 +77,11 @@
 
 ### Tests for User Story 6 ⚠️
 
-- [ ] T014 tests/unit/adapters/test_slack_client.py 작성
+- [x] T014 tests/unit/adapters/test_slack_client.py 작성
 
 ### Implementation for User Story 6
 
-- [ ] T015 [US6] src/adapters/slack_client.py 구현
+- [x] T015 [US6] src/adapters/slack_client.py 구현
 
 **Checkpoint**: Slack 클라이언트 완료, 단위 테스트 통과
 
@@ -95,11 +95,11 @@
 
 ### Tests for User Story 7 ⚠️
 
-- [ ] T016 tests/unit/adapters/test_tasks_client.py 작성
+- [x] T016 tests/unit/adapters/test_tasks_client.py 작성
 
 ### Implementation for User Story 7
 
-- [ ] T017 [US7] src/adapters/tasks_client.py 구현
+- [x] T017 [US7] src/adapters/tasks_client.py 구현
 
 **Checkpoint**: Tasks 클라이언트 완료, 단위 테스트 통과
 
@@ -113,13 +113,13 @@
 
 ### Tests for User Story 5 ⚠️
 
-- [ ] T018 tests/unit/agent/test_cognee_tools.py 작성
+- [x] T018 tests/unit/agent/test_cognee_tools.py 작성
 
 ### Implementation for User Story 5
 
-- [ ] T019 [US5] src/agent/core/cognee_tools.py 구현
-- [ ] T020 [US5] src/agent/core/__init__.py 생성
-- [ ] T021 [US5] src/agent/__init__.py 생성
+- [x] T019 [US5] src/agent/core/cognee_tools.py 구현 (지연 로딩 적용)
+- [x] T020 [US5] src/agent/core/__init__.py 생성
+- [x] T021 [US5] src/agent/__init__.py 생성
 
 **Checkpoint**: Cognee 도구 완료, 단위 테스트 통과
 
@@ -133,12 +133,12 @@
 
 ### Tests for User Story 8 ⚠️
 
-- [ ] T022 tests/unit/api/test_main.py 작성 (TestClient 사용)
+- [x] T022 tests/unit/api/test_main.py 작성 (TestClient 사용)
 
 ### Implementation for User Story 8
 
-- [ ] T023 [US8] src/api/main.py 구현 (lifespan, /health)
-- [ ] T024 [US8] src/api/__init__.py 생성
+- [x] T023 [US8] src/api/main.py 구현 (lifespan, /health)
+- [x] T024 [US8] src/api/__init__.py 생성
 
 **Checkpoint**: FastAPI 앱 완료, /health 테스트 통과
 
@@ -152,10 +152,10 @@
 
 ### Integration Tasks
 
-- [ ] T025 [US1] .pre-commit-config.yaml 업데이트 (ruff, mypy)
-- [ ] T026 [US1] uv sync --all-extras 실행 및 검증
-- [ ] T027 [US1] docker compose up -d && 서버 시작 통합 테스트
-- [ ] T028 [US1] 전체 테스트 실행 (uv run pytest tests/ -v)
+- [x] T025 [US1] .pre-commit-config.yaml 업데이트 (ruff, mypy)
+- [x] T026 [US1] uv sync --all-extras 실행 및 검증
+- [x] T027 [US1] docker compose up -d && 서버 시작 통합 테스트
+- [x] T028 [US1] 전체 테스트 실행 (uv run pytest tests/ -v) → 30 passed
 
 **Checkpoint**: 개발 환경 완전 설정, 모든 테스트 통과
 
@@ -167,7 +167,8 @@
 
 - [ ] T029 [P] CLAUDE.md 업데이트 (Phase 0 완료 반영)
 - [ ] T030 [P] README.md 빠른 시작 섹션 업데이트
-- [ ] T031 전체 Quality Gates 통과 확인 (ruff, mypy, pytest)
+- [x] T031 전체 Quality Gates 통과 확인 (ruff, mypy, pytest)
+- [x] T032 [추가] GitHub Actions CI 워크플로우 추가
 
 ---
 
@@ -210,18 +211,18 @@ Polish (Phase 9)
 
 ## Task Count Summary
 
-| Phase | 태스크 수 | 테스트 수 | 구현 수 |
-|-------|----------|----------|---------|
-| Setup | 5 | 0 | 5 |
-| Foundational | 5 | 2 | 3 |
-| Firestore | 3 | 1 | 2 |
-| Slack | 2 | 1 | 1 |
-| Tasks | 2 | 1 | 1 |
-| Cognee | 4 | 1 | 3 |
-| FastAPI | 3 | 1 | 2 |
-| Integration | 4 | 0 | 4 |
-| Polish | 3 | 0 | 3 |
-| **Total** | **31** | **7** | **24** |
+| Phase | 태스크 수 | 완료 | 남은 작업 |
+|-------|----------|------|----------|
+| Setup | 5 | 5 ✅ | 0 |
+| Foundational | 5 | 5 ✅ | 0 |
+| Firestore | 3 | 3 ✅ | 0 |
+| Slack | 2 | 2 ✅ | 0 |
+| Tasks | 2 | 2 ✅ | 0 |
+| Cognee | 4 | 4 ✅ | 0 |
+| FastAPI | 3 | 3 ✅ | 0 |
+| Integration | 4 | 4 ✅ | 0 |
+| Polish | 4 | 2 | 2 (T029, T030) |
+| **Total** | **32** | **30** | **2** |
 
 ---
 
