@@ -127,6 +127,11 @@ module = "google.adk.*"
 ignore_errors = true
 
 [[tool.mypy.overrides]]
+module = "google.cloud.*"
+ignore_missing_imports = true
+ignore_errors = true
+
+[[tool.mypy.overrides]]
 module = "src.agent.*"
 disallow_untyped_defs = false
 warn_return_any = false
@@ -144,6 +149,8 @@ markers = [
 filterwarnings = [
     "ignore:Pydantic serializer warnings:UserWarning",
     "ignore:coroutine .* was never awaited:RuntimeWarning",
+    "ignore:Using extra keyword arguments on `Field` is deprecated:pydantic.warnings.PydanticDeprecatedSince20",
+    "ignore:`json_encoders` is deprecated:pydantic.warnings.PydanticDeprecatedSince20",
 ]
 
 # ============================================================================
