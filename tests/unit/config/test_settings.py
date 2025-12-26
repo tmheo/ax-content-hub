@@ -36,7 +36,8 @@ class TestSettings:
         from src.config.settings import Settings
 
         with pytest.raises(ValidationError):
-            Settings()
+            # _env_file=None으로 .env 파일 로딩 비활성화
+            Settings(_env_file=None)
 
     def test_settings_is_local_property(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """is_local should return True when FIRESTORE_EMULATOR_HOST is set."""
@@ -63,7 +64,8 @@ class TestSettings:
 
         from src.config.settings import Settings
 
-        settings = Settings()
+        # _env_file=None으로 .env 파일 로딩 비활성화 (FIRESTORE_EMULATOR_HOST 방지)
+        settings = Settings(_env_file=None)
         assert settings.is_local is False
 
     def test_settings_default_tasks_mode(self, monkeypatch: pytest.MonkeyPatch) -> None:
