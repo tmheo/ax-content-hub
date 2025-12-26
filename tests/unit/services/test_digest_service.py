@@ -222,7 +222,8 @@ class TestDigestService:
         result = digest_service.send_digest(digest)
 
         assert result is True
-        mock_slack_client.post_message.assert_called_once()
+        # 각 콘텐츠마다 개별 메시지 발송 (2개 콘텐츠 = 2번 호출)
+        assert mock_slack_client.post_message.call_count == 2
         mock_digest_repo.update_sent_info.assert_called_once()
 
     def test_send_digest_failure(
@@ -383,7 +384,8 @@ class TestDigestService:
 
         assert result is True
         mock_digest_repo.create.assert_called_once()
-        mock_slack_client.post_message.assert_called_once()
+        # 각 콘텐츠마다 개별 메시지 발송 (2개 콘텐츠 = 2번 호출)
+        assert mock_slack_client.post_message.call_count == 2
 
     def test_filter_contents_by_relevance(
         self,

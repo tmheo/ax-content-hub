@@ -1,11 +1,10 @@
 """Slack digest sender tool.
 
 Slack Block Kit을 사용하여 다이제스트 메시지를 구성하고 발송합니다.
-50개 블록 제한을 고려하여 필요시 분할 발송합니다.
+각 콘텐츠를 개별 메시지로 발송합니다.
 """
 
 from dataclasses import dataclass, field
-from datetime import date
 from typing import Any
 
 from markdown_to_mrkdwn import SlackMarkdownConverter
@@ -30,9 +29,6 @@ def to_mrkdwn(text: str) -> str:
     if not text:
         return text
     return _mrkdwn_converter.convert(text)
-
-
-SLACK_BLOCKS_LIMIT = 50
 
 
 @dataclass
@@ -66,143 +62,77 @@ class SendDigestResult:
     error: str | None = None
 
 
-def build_digest_blocks(
-    digest_blocks: list[DigestBlock],
-    digest_date: date,
-) -> list[dict[str, Any]]:
-    """Block Kit 형식의 다이제스트 블록 생성.
+def build_content_blocks(digest_block: DigestBlock) -> list[dict[str, Any]]:
+    """단일 콘텐츠에 대한 Block Kit 블록 생성.
 
     Args:
-        digest_blocks: 다이제스트에 포함될 콘텐츠 블록들
-        digest_date: 다이제스트 날짜
+        digest_block: 콘텐츠 블록 정보
 
     Returns:
         Block Kit 형식의 블록 리스트
     """
     blocks: list[dict[str, Any]] = []
 
-    # 헤더 블록
-    header_text = f":newspaper: AX 다이제스트 ({digest_date.isoformat()})"
+    score_percent = int(digest_block.relevance_score * 100)
+    score_emoji = _get_score_emoji(digest_block.relevance_score)
+
+    # 카테고리 태그
+    category_tags = (
+        " ".join(f"`{cat}`" for cat in digest_block.categories)
+        if digest_block.categories
+        else ""
+    )
+
+    # Markdown → Slack mrkdwn 변환
+    summary_mrkdwn = to_mrkdwn(digest_block.summary_ko)
+    why_important_mrkdwn = to_mrkdwn(digest_block.why_important)
+
+    # 메인 섹션
     blocks.append(
         {
-            "type": "header",
+            "type": "section",
             "text": {
-                "type": "plain_text",
-                "text": header_text,
-                "emoji": True,
+                "type": "mrkdwn",
+                "text": (
+                    f"*{digest_block.title_ko}*\n"
+                    f"{summary_mrkdwn}\n\n"
+                    f":bulb: _{why_important_mrkdwn}_"
+                ),
             },
         }
     )
 
-    # 콘텐츠가 없는 경우
-    if not digest_blocks:
-        blocks.append(
-            {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": ":information_source: 오늘은 새로운 AX 콘텐츠가 없습니다.",
-                },
-            }
-        )
-        return blocks
+    # 메타 정보 (점수, 카테고리)
+    meta_text = f"{score_emoji} 관련성: *{score_percent}%*"
+    if category_tags:
+        meta_text += f"  |  {category_tags}"
 
-    # 요약 정보
     blocks.append(
         {
             "type": "context",
             "elements": [
                 {
                     "type": "mrkdwn",
-                    "text": f":memo: 오늘의 콘텐츠 *{len(digest_blocks)}*건",
+                    "text": meta_text,
                 }
             ],
         }
     )
 
-    blocks.append({"type": "divider"})
-
-    # 각 콘텐츠 블록
-    for i, digest_block in enumerate(digest_blocks):
-        # 제목과 점수
-        score_percent = int(digest_block.relevance_score * 100)
-        score_emoji = _get_score_emoji(digest_block.relevance_score)
-
-        # 카테고리 태그
-        category_tags = (
-            " ".join(f"`{cat}`" for cat in digest_block.categories)
-            if digest_block.categories
-            else ""
-        )
-
-        # Markdown → Slack mrkdwn 변환
-        summary_mrkdwn = to_mrkdwn(digest_block.summary_ko)
-        why_important_mrkdwn = to_mrkdwn(digest_block.why_important)
-
-        # 메인 섹션
-        blocks.append(
-            {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": (
-                        f"*{i + 1}. {digest_block.title_ko}*\n"
-                        f"{summary_mrkdwn}\n\n"
-                        f":bulb: _{why_important_mrkdwn}_"
-                    ),
-                },
-            }
-        )
-
-        # 메타 정보 (점수, 카테고리)
-        meta_text = f"{score_emoji} 관련성: *{score_percent}%*"
-        if category_tags:
-            meta_text += f"  |  {category_tags}"
-
-        blocks.append(
-            {
-                "type": "context",
-                "elements": [
-                    {
-                        "type": "mrkdwn",
-                        "text": meta_text,
-                    }
-                ],
-            }
-        )
-
-        # 원문 링크 버튼
-        blocks.append(
-            {
-                "type": "actions",
-                "elements": [
-                    {
-                        "type": "button",
-                        "text": {
-                            "type": "plain_text",
-                            "text": ":link: 원문 보기",
-                            "emoji": True,
-                        },
-                        "url": digest_block.original_url,
-                        "action_id": f"view_original_{digest_block.content_id}",
-                    }
-                ],
-            }
-        )
-
-        # 구분선 (마지막 항목 제외)
-        if i < len(digest_blocks) - 1:
-            blocks.append({"type": "divider"})
-
-    # 푸터
-    blocks.append({"type": "divider"})
+    # 원문 링크 버튼
     blocks.append(
         {
-            "type": "context",
+            "type": "actions",
             "elements": [
                 {
-                    "type": "mrkdwn",
-                    "text": ":robot_face: _AX Content Hub에서 자동 생성됨_",
+                    "type": "button",
+                    "text": {
+                        "type": "plain_text",
+                        "text": ":link: 원문 보기",
+                        "emoji": True,
+                    },
+                    "url": digest_block.original_url,
+                    "action_id": f"view_original_{digest_block.content_id}",
                 }
             ],
         }
@@ -223,32 +153,6 @@ def _get_score_emoji(score: float) -> str:
         return ":information_source:"
 
 
-def split_blocks_for_slack(
-    blocks: list[dict[str, Any]],
-    limit: int = SLACK_BLOCKS_LIMIT,
-) -> list[list[dict[str, Any]]]:
-    """Slack 블록 제한에 맞게 분할.
-
-    Args:
-        blocks: 분할할 블록 리스트
-        limit: 블록 제한 (기본 50)
-
-    Returns:
-        분할된 블록 리스트들
-    """
-    if not blocks:
-        return [[]]
-
-    if len(blocks) <= limit:
-        return [blocks]
-
-    result = []
-    for i in range(0, len(blocks), limit):
-        result.append(blocks[i : i + limit])
-
-    return result
-
-
 def send_digest(
     digest: Digest,
     contents: list[Content],
@@ -256,18 +160,28 @@ def send_digest(
 ) -> SendDigestResult:
     """다이제스트를 Slack으로 발송.
 
+    각 콘텐츠를 개별 메시지로 발송합니다.
+
     Args:
         digest: 다이제스트 정보
         contents: 다이제스트에 포함될 콘텐츠들
         slack_client: Slack 클라이언트
 
     Returns:
-        발송 결과
+        발송 결과 (첫 번째 메시지의 timestamp 반환)
     """
+    if not contents:
+        return SendDigestResult(
+            success=True,
+            message_ts=None,
+        )
+
     try:
-        # Content를 DigestBlock으로 변환
-        digest_blocks = [
-            DigestBlock(
+        first_message_ts: str | None = None
+
+        for content in contents:
+            # Content를 DigestBlock으로 변환
+            digest_block = DigestBlock(
                 content_id=content.id,
                 title_ko=content.title_ko or content.original_title,
                 summary_ko=content.summary_ko or "",
@@ -276,39 +190,24 @@ def send_digest(
                 original_url=content.original_url,
                 categories=content.categories or [],
             )
-            for content in contents
-        ]
 
-        # Block Kit 블록 생성
-        blocks = build_digest_blocks(
-            digest_blocks=digest_blocks,
-            digest_date=digest.digest_date,
-        )
+            # Block Kit 블록 생성
+            blocks = build_content_blocks(digest_block)
 
-        # 블록 분할
-        block_chunks = split_blocks_for_slack(blocks)
-
-        # 첫 번째 메시지 발송
-        first_result = slack_client.post_message(
-            channel=digest.channel_id,
-            blocks=block_chunks[0],
-            text=f"AX 다이제스트 ({digest.digest_date.isoformat()})",
-        )
-
-        message_ts = first_result.get("ts")
-
-        # 추가 청크가 있으면 스레드로 발송
-        for chunk in block_chunks[1:]:
-            slack_client.post_message(
+            # 메시지 발송
+            result = slack_client.post_message(
                 channel=digest.channel_id,
-                blocks=chunk,
-                text="(계속)",
-                thread_ts=message_ts,
+                blocks=blocks,
+                text=digest_block.title_ko,
             )
+
+            # 첫 번째 메시지의 timestamp 저장
+            if first_message_ts is None:
+                first_message_ts = result.get("ts")
 
         return SendDigestResult(
             success=True,
-            message_ts=message_ts,
+            message_ts=first_message_ts,
         )
 
     except Exception as e:
