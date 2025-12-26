@@ -15,28 +15,51 @@ Usage:
 from collections.abc import Callable
 from typing import Any
 
-# Try to import Cognee tools, fall back to stubs if not available
-try:
-    from cognee_integration_google_adk import (
-        add_tool,
-        get_sessionized_cognee_tools,
-        search_tool,
-    )
-except ImportError:
-    # Fallback stubs for when cognee-integration-google-adk is not installed
-    def add_tool(content: str) -> dict[str, Any]:
-        """Stub add_tool for when Cognee is not available."""
-        return {"status": "stub", "message": "Cognee not installed"}
+# Cached imports (lazy loaded)
+_cognee_tools: dict[str, Any] | None = None
 
-    def search_tool(query: str) -> list[dict[str, Any]]:
-        """Stub search_tool for when Cognee is not available."""
-        return []
 
-    def get_sessionized_cognee_tools(
-        session_id: str,
-    ) -> tuple[Callable[..., Any], Callable[..., Any]]:
-        """Stub get_sessionized_cognee_tools for when Cognee is not available."""
-        return add_tool, search_tool
+def _get_cognee_imports() -> dict[str, Any]:
+    """Lazy load Cognee tools to avoid slow import at module level."""
+    global _cognee_tools
+    if _cognee_tools is not None:
+        return _cognee_tools
+
+    try:
+        from cognee_integration_google_adk import (
+            add_tool,
+            get_sessionized_cognee_tools,
+            search_tool,
+        )
+
+        _cognee_tools = {
+            "add_tool": add_tool,
+            "search_tool": search_tool,
+            "get_sessionized_cognee_tools": get_sessionized_cognee_tools,
+        }
+    except ImportError:
+        # Fallback stubs for when cognee-integration-google-adk is not installed
+        def stub_add_tool(content: str) -> dict[str, Any]:
+            """Stub add_tool for when Cognee is not available."""
+            return {"status": "stub", "message": "Cognee not installed"}
+
+        def stub_search_tool(query: str) -> list[dict[str, Any]]:
+            """Stub search_tool for when Cognee is not available."""
+            return []
+
+        def stub_get_sessionized(
+            session_id: str,
+        ) -> tuple[Callable[..., Any], Callable[..., Any]]:
+            """Stub get_sessionized_cognee_tools for when Cognee is not available."""
+            return stub_add_tool, stub_search_tool
+
+        _cognee_tools = {
+            "add_tool": stub_add_tool,
+            "search_tool": stub_search_tool,
+            "get_sessionized_cognee_tools": stub_get_sessionized,
+        }
+
+    return _cognee_tools
 
 
 def get_cognee_tools(
@@ -62,6 +85,7 @@ def get_cognee_tools(
         # Search for related information
         results = await search_memory("AI trends")
     """
+    tools = _get_cognee_imports()
     if workspace_id:
-        return get_sessionized_cognee_tools(workspace_id)
-    return add_tool, search_tool
+        return tools["get_sessionized_cognee_tools"](workspace_id)
+    return tools["add_tool"], tools["search_tool"]

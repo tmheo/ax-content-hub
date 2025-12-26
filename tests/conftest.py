@@ -35,7 +35,9 @@ def mock_firestore_client() -> MagicMock:
 def mock_slack_client() -> MagicMock:
     """Mock Slack client."""
     client = MagicMock()
-    client.chat_postMessage = AsyncMock(return_value={"ok": True, "ts": "1234567890.123456"})
+    client.chat_postMessage = AsyncMock(
+        return_value={"ok": True, "ts": "1234567890.123456"}
+    )
     return client
 
 

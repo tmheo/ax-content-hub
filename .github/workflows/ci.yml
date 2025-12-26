@@ -1,0 +1,155 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: ["3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Cache uv
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            .venv
+          key: uv-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/uv.lock') }}
+          restore-keys: |
+            uv-${{ runner.os }}-${{ matrix.python-version }}-
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Run Linters
+        run: |
+          uv run ruff check src/ tests/ --output-format=github
+          uv run ruff format --check src/ tests/
+
+      - name: Run Type Check
+        run: uv run mypy src/
+
+      - name: Run Tests
+        run: uv run pytest --cov=src --cov-report=xml --cov-report=html --cov-report=term -v
+
+      - name: Upload Coverage Report
+        uses: actions/upload-artifact@v4
+        if: always() && matrix.python-version == '3.12'
+        with:
+          name: coverage-report
+          path: htmlcov/
+
+      - name: Comment Coverage on PR
+        uses: actions/github-script@v7
+        if: github.event_name == 'pull_request' && matrix.python-version == '3.12'
+        with:
+          script: |
+            const fs = require('fs');
+
+            try {
+              if (!fs.existsSync('coverage.xml')) {
+                console.log('coverage.xml file not found');
+                return;
+              }
+
+              const coverageXml = fs.readFileSync('coverage.xml', 'utf8');
+
+              // 전체 커버리지
+              const totalMatch = coverageXml.match(/^<coverage[^>]*line-rate="([^"]+)"/m);
+              const totalCoverage = totalMatch ? (parseFloat(totalMatch[1]) * 100).toFixed(1) : 'Unknown';
+
+              // 파일별 커버리지 파싱 (속성 순서에 의존하지 않음)
+              const classRegex = /<class[^>]+>/g;
+              const files = [];
+              let classMatch;
+
+              while ((classMatch = classRegex.exec(coverageXml)) !== null) {
+                const classTag = classMatch[0];
+                const filenameMatch = classTag.match(/filename="([^"]+)"/);
+                const lineRateMatch = classTag.match(/line-rate="([^"]+)"/);
+
+                if (filenameMatch && lineRateMatch) {
+                  const filename = filenameMatch[1];
+                  const lineRate = (parseFloat(lineRateMatch[1]) * 100).toFixed(1);
+                  files.push({ filename, coverage: lineRate });
+                }
+              }
+
+              // 파일별 테이블 생성
+              let fileTable = '| File | Coverage |\n|------|----------|\n';
+              files.sort((a, b) => a.filename.localeCompare(b.filename));
+              for (const file of files) {
+                const icon = parseFloat(file.coverage) >= 80 ? '🟢' : parseFloat(file.coverage) >= 50 ? '🟡' : '🔴';
+                fileTable += `| \`${file.filename}\` | ${icon} ${file.coverage}% |\n`;
+              }
+
+              const body = [
+                '## 📊 Test Coverage Report',
+                '',
+                `**Total Coverage: ${totalCoverage}%**`,
+                '',
+                '<details>',
+                '<summary>📂 파일별 상세 커버리지 보기</summary>',
+                '',
+                fileTable,
+                '</details>',
+                '',
+                `📁 **HTML 리포트**: [Coverage Report Artifact](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})에서 다운로드`
+              ].join('\n');
+
+              const comments = await github.rest.issues.listComments({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+              });
+
+              const botComments = comments.data.filter(comment =>
+                comment.user.login === 'github-actions[bot]' &&
+                comment.body.includes('📊 Test Coverage Report')
+              );
+
+              for (const comment of botComments) {
+                await github.rest.issues.deleteComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: comment.id,
+                });
+              }
+
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: body
+              });
+
+              console.log(`Coverage comment posted: ${totalCoverage}%`);
+            } catch (error) {
+              console.error('Error posting coverage:', error);
+            }

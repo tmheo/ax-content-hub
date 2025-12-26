@@ -10,10 +10,15 @@ class TestCogneeTools:
         """get_cognee_tools without session_id should return global tools."""
         mock_add = MagicMock()
         mock_search = MagicMock()
+        mock_tools = {
+            "add_tool": mock_add,
+            "search_tool": mock_search,
+            "get_sessionized_cognee_tools": MagicMock(),
+        }
 
-        with (
-            patch("src.agent.core.cognee_tools.add_tool", mock_add),
-            patch("src.agent.core.cognee_tools.search_tool", mock_search),
+        with patch(
+            "src.agent.core.cognee_tools._get_cognee_imports",
+            return_value=mock_tools,
         ):
             from src.agent.core.cognee_tools import get_cognee_tools
 
@@ -29,10 +34,15 @@ class TestCogneeTools:
         mock_get_sessionized = MagicMock(
             return_value=(mock_sessionized_add, mock_sessionized_search)
         )
+        mock_tools = {
+            "add_tool": MagicMock(),
+            "search_tool": MagicMock(),
+            "get_sessionized_cognee_tools": mock_get_sessionized,
+        }
 
         with patch(
-            "src.agent.core.cognee_tools.get_sessionized_cognee_tools",
-            mock_get_sessionized,
+            "src.agent.core.cognee_tools._get_cognee_imports",
+            return_value=mock_tools,
         ):
             from src.agent.core.cognee_tools import get_cognee_tools
 
@@ -46,10 +56,15 @@ class TestCogneeTools:
         """Cognee tools should be callable functions."""
         mock_add = MagicMock()
         mock_search = MagicMock()
+        mock_tools = {
+            "add_tool": mock_add,
+            "search_tool": mock_search,
+            "get_sessionized_cognee_tools": MagicMock(),
+        }
 
-        with (
-            patch("src.agent.core.cognee_tools.add_tool", mock_add),
-            patch("src.agent.core.cognee_tools.search_tool", mock_search),
+        with patch(
+            "src.agent.core.cognee_tools._get_cognee_imports",
+            return_value=mock_tools,
         ):
             from src.agent.core.cognee_tools import get_cognee_tools
 
