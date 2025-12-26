@@ -113,6 +113,10 @@ class DigestService:
 
             if result.success and result.message_ts:
                 self.digest_repo.update_sent_info(digest.id, result.message_ts)
+                # 콘텐츠를 다이제스트에 포함됨으로 마킹 (중복 발송 방지)
+                self.content_repo.mark_as_included_in_digest(
+                    digest.content_ids, digest.id
+                )
                 return True
             else:
                 error_msg = result.error or "Unknown error"

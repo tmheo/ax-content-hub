@@ -151,9 +151,15 @@ class ContentPipeline:
         Returns:
             수집된 콘텐츠 ID 목록
         """
-        # YouTube 수집 로직
-        # 여기서는 인터페이스만 정의
-        return []
+        from src.agent.domains.collector.tools.youtube_tool import fetch_channel_videos
+
+        contents = fetch_channel_videos(
+            source_id=source.id,
+            channel_url=str(source.url),
+            content_repo=self.content_repo,
+            max_videos=10,
+        )
+        return [c.id for c in contents]
 
     def _handle_process_task(self, payload: dict[str, str]) -> None:
         """Cloud Tasks process 핸들러 (direct 모드용).

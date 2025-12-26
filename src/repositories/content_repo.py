@@ -95,7 +95,8 @@ class ContentRepository(BaseRepository[Content]):
     ) -> list[Content]:
         """다이제스트용 콘텐츠 조회.
 
-        완료된 콘텐츠 중 최소 관련성 점수 이상인 것들을 조회합니다.
+        완료된 콘텐츠 중 최소 관련성 점수 이상이고,
+        아직 다이제스트에 포함되지 않은 것들을 조회합니다.
 
         Args:
             min_relevance: 최소 관련성 점수.
@@ -109,11 +110,15 @@ class ContentRepository(BaseRepository[Content]):
             [("processing_status", "==", ProcessingStatus.COMPLETED.value)]
         )
 
-        # 애플리케이션 레벨에서 관련성 필터링
+        # 애플리케이션 레벨에서 필터링:
+        # 1. 관련성 점수 충족
+        # 2. 아직 다이제스트에 포함되지 않음
         filtered = [
             c
             for c in results
-            if c.relevance_score is not None and c.relevance_score >= min_relevance
+            if c.relevance_score is not None
+            and c.relevance_score >= min_relevance
+            and c.included_in_digest_id is None
         ]
 
         # 관련성 점수로 정렬
@@ -246,3 +251,19 @@ class ContentRepository(BaseRepository[Content]):
                 "last_error": reason,
             },
         )
+
+    def mark_as_included_in_digest(
+        self, content_ids: list[str], digest_id: str
+    ) -> None:
+        """다이제스트에 포함됨으로 마킹.
+
+        Args:
+            content_ids: 콘텐츠 ID 목록.
+            digest_id: 다이제스트 ID.
+        """
+        for content_id in content_ids:
+            self._db.update(
+                self.collection_name,
+                content_id,
+                {"included_in_digest_id": digest_id},
+            )

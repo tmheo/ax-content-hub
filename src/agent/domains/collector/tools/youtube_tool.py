@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from urllib.parse import parse_qs, urlparse
 
+import feedparser
+import httpx
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import (
     NoTranscriptFound,
@@ -92,24 +94,29 @@ def get_transcript(
         languages = ["en"]
 
     try:
-        transcript_list = YouTubeTranscriptApi.get_transcript(
-            video_id, languages=languages
-        )
+        # 인스턴스 생성 후 fetch 호출 (새 API)
+        api = YouTubeTranscriptApi()
+        transcript_list = api.fetch(video_id, languages=languages)
 
-        # 텍스트 연결
-        text_parts = [segment["text"] for segment in transcript_list]
+        # 텍스트 연결 (새 API는 FetchedTranscriptSnippet 객체 리스트 반환)
+        text_parts = [segment.text for segment in transcript_list]
         full_text = " ".join(text_parts)
 
         # 전체 길이 계산 (마지막 세그먼트의 시작 + 지속시간)
         duration = 0.0
         if transcript_list:
             last_segment = transcript_list[-1]
-            duration = last_segment["start"] + last_segment["duration"]
+            duration = last_segment.start + last_segment.duration
+
+        # 실제 사용된 언어 확인
+        actual_language = languages[0]
+        if hasattr(transcript_list, "language"):
+            actual_language = transcript_list.language
 
         return YouTubeTranscript(
             video_id=video_id,
             text=full_text,
-            language=languages[0],  # 첫 번째 요청 언어
+            language=actual_language,
             duration_seconds=duration,
         )
 
@@ -187,3 +194,121 @@ def fetch_youtube(
     content_repo.create(content)
 
     return content
+
+
+def get_channel_id(channel_url: str) -> str | None:
+    """YouTube 채널 URL에서 channel ID 추출.
+
+    @handle 형식의 URL에서 실제 channel ID를 가져옵니다.
+
+    Args:
+        channel_url: YouTube 채널 URL (예: https://www.youtube.com/@anthropic-ai)
+
+    Returns:
+        channel ID 또는 None.
+    """
+    parsed = urlparse(channel_url)
+
+    # 이미 channel ID 형식인 경우 (UC로 시작하는 24자)
+    if "/channel/" in parsed.path:
+        parts = parsed.path.split("/channel/")
+        if len(parts) > 1:
+            channel_id = parts[1].split("/")[0]
+            if channel_id.startswith("UC") and len(channel_id) == 24:
+                return channel_id
+
+    # @handle 형식인 경우 HTML에서 channel ID 추출
+    try:
+        with httpx.Client(timeout=10.0, follow_redirects=True) as client:
+            response = client.get(channel_url)
+            response.raise_for_status()
+
+            # HTML에서 channel ID 추출
+            # 패턴: "channelId":"UC..."
+            match = re.search(r'"channelId":"(UC[a-zA-Z0-9_-]{22})"', response.text)
+            if match:
+                return match.group(1)
+
+            # 대체 패턴: /channel/UC... 형태의 canonical URL
+            match = re.search(
+                r'<link rel="canonical" href="[^"]*?/channel/(UC[a-zA-Z0-9_-]{22})"',
+                response.text,
+            )
+            if match:
+                return match.group(1)
+
+    except Exception:
+        pass
+
+    return None
+
+
+def fetch_channel_videos(
+    source_id: str,
+    channel_url: str,
+    content_repo: ContentRepository,
+    max_videos: int = 10,
+) -> list[Content]:
+    """YouTube 채널에서 최신 영상들을 수집.
+
+    채널의 RSS 피드를 사용하여 최신 영상 목록을 가져오고,
+    각 영상의 자막을 수집합니다.
+
+    Args:
+        source_id: 소스 ID.
+        channel_url: YouTube 채널 URL.
+        content_repo: ContentRepository 인스턴스.
+        max_videos: 최대 수집 영상 수 (기본 10).
+
+    Returns:
+        수집된 Content 목록.
+    """
+    # 채널 ID 추출
+    channel_id = get_channel_id(channel_url)
+    if not channel_id:
+        return []
+
+    # RSS 피드 URL
+    feed_url = f"https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
+
+    try:
+        feed = feedparser.parse(feed_url)
+    except Exception:
+        return []
+
+    if not feed.entries:
+        return []
+
+    collected: list[Content] = []
+
+    for entry in feed.entries[:max_videos]:
+        video_url = entry.get("link", "")
+        video_title = entry.get("title", "")
+        published_str = entry.get("published", "")
+
+        if not video_url or not video_title:
+            continue
+
+        # 발행일 파싱
+        published_at = None
+        if published_str:
+            try:
+                from email.utils import parsedate_to_datetime
+
+                published_at = parsedate_to_datetime(published_str)
+            except Exception:
+                pass
+
+        # 자막 수집
+        content = fetch_youtube(
+            source_id=source_id,
+            video_url=video_url,
+            video_title=video_title,
+            content_repo=content_repo,
+            published_at=published_at,
+        )
+
+        if content:
+            collected.append(content)
+
+    return collected

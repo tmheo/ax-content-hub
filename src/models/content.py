@@ -114,6 +114,11 @@ class Content(BaseModel):
     processing_attempts: int = Field(0, ge=0, description="처리 시도 횟수")
     last_error: str | None = Field(None, description="마지막 에러 메시지")
 
+    # 다이제스트 포함 여부
+    included_in_digest_id: str | None = Field(
+        None, description="포함된 다이제스트 ID (중복 발송 방지)"
+    )
+
     # 타임스탬프
     collected_at: datetime = Field(..., description="수집 시간")
     processed_at: datetime | None = Field(None, description="처리 완료 시간")

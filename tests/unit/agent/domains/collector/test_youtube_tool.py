@@ -1,5 +1,6 @@
 """Tests for YouTube transcript collection tool."""
 
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
@@ -11,6 +12,15 @@ from src.agent.domains.collector.tools.youtube_tool import (
     fetch_youtube,
     get_transcript,
 )
+
+
+@dataclass
+class MockTranscriptSnippet:
+    """Mock transcript snippet object (new API format)."""
+
+    text: str
+    start: float
+    duration: float
 
 
 class TestExtractVideoId:
@@ -67,14 +77,16 @@ class TestGetTranscript:
     def test_get_english_transcript(self) -> None:
         """영어 자막 가져오기."""
         mock_transcript_data = [
-            {"text": "Hello world.", "start": 0.0, "duration": 2.0},
-            {"text": "This is a test.", "start": 2.0, "duration": 2.0},
+            MockTranscriptSnippet(text="Hello world.", start=0.0, duration=2.0),
+            MockTranscriptSnippet(text="This is a test.", start=2.0, duration=2.0),
         ]
 
         with patch(
             "src.agent.domains.collector.tools.youtube_tool.YouTubeTranscriptApi"
-        ) as mock_api:
-            mock_api.get_transcript.return_value = mock_transcript_data
+        ) as mock_api_class:
+            mock_instance = MagicMock()
+            mock_api_class.return_value = mock_instance
+            mock_instance.fetch.return_value = mock_transcript_data
 
             result = get_transcript("dQw4w9WgXcQ")
 
@@ -87,38 +99,40 @@ class TestGetTranscript:
     def test_get_korean_transcript(self) -> None:
         """한국어 자막 가져오기."""
         mock_transcript_data = [
-            {"text": "안녕하세요.", "start": 0.0, "duration": 2.0},
-            {"text": "테스트입니다.", "start": 2.0, "duration": 2.0},
+            MockTranscriptSnippet(text="안녕하세요.", start=0.0, duration=2.0),
+            MockTranscriptSnippet(text="테스트입니다.", start=2.0, duration=2.0),
         ]
 
         with patch(
             "src.agent.domains.collector.tools.youtube_tool.YouTubeTranscriptApi"
-        ) as mock_api:
-            mock_api.get_transcript.return_value = mock_transcript_data
+        ) as mock_api_class:
+            mock_instance = MagicMock()
+            mock_api_class.return_value = mock_instance
+            mock_instance.fetch.return_value = mock_transcript_data
 
             result = get_transcript("dQw4w9WgXcQ", languages=["ko"])
 
             assert result is not None
             assert "안녕하세요" in result.text
-            mock_api.get_transcript.assert_called_once_with(
-                "dQw4w9WgXcQ", languages=["ko"]
-            )
+            mock_instance.fetch.assert_called_once_with("dQw4w9WgXcQ", languages=["ko"])
 
     def test_get_transcript_fallback_languages(self) -> None:
         """언어 폴백 테스트."""
         mock_transcript_data = [
-            {"text": "Fallback content.", "start": 0.0, "duration": 2.0},
+            MockTranscriptSnippet(text="Fallback content.", start=0.0, duration=2.0),
         ]
 
         with patch(
             "src.agent.domains.collector.tools.youtube_tool.YouTubeTranscriptApi"
-        ) as mock_api:
-            mock_api.get_transcript.return_value = mock_transcript_data
+        ) as mock_api_class:
+            mock_instance = MagicMock()
+            mock_api_class.return_value = mock_instance
+            mock_instance.fetch.return_value = mock_transcript_data
 
             result = get_transcript("dQw4w9WgXcQ", languages=["ko", "en"])
 
             assert result is not None
-            mock_api.get_transcript.assert_called_once_with(
+            mock_instance.fetch.assert_called_once_with(
                 "dQw4w9WgXcQ", languages=["ko", "en"]
             )
 
@@ -126,10 +140,12 @@ class TestGetTranscript:
         """자막 없는 경우."""
         with patch(
             "src.agent.domains.collector.tools.youtube_tool.YouTubeTranscriptApi"
-        ) as mock_api:
+        ) as mock_api_class:
             from youtube_transcript_api._errors import TranscriptsDisabled
 
-            mock_api.get_transcript.side_effect = TranscriptsDisabled("video_id")
+            mock_instance = MagicMock()
+            mock_api_class.return_value = mock_instance
+            mock_instance.fetch.side_effect = TranscriptsDisabled("video_id")
 
             result = get_transcript("dQw4w9WgXcQ")
 
@@ -139,8 +155,10 @@ class TestGetTranscript:
         """API 에러."""
         with patch(
             "src.agent.domains.collector.tools.youtube_tool.YouTubeTranscriptApi"
-        ) as mock_api:
-            mock_api.get_transcript.side_effect = Exception("API Error")
+        ) as mock_api_class:
+            mock_instance = MagicMock()
+            mock_api_class.return_value = mock_instance
+            mock_instance.fetch.side_effect = Exception("API Error")
 
             result = get_transcript("dQw4w9WgXcQ")
 
@@ -149,15 +167,17 @@ class TestGetTranscript:
     def test_get_transcript_concatenates_text(self) -> None:
         """여러 세그먼트 텍스트 연결."""
         mock_transcript_data = [
-            {"text": "First segment.", "start": 0.0, "duration": 1.0},
-            {"text": "Second segment.", "start": 1.0, "duration": 1.0},
-            {"text": "Third segment.", "start": 2.0, "duration": 1.0},
+            MockTranscriptSnippet(text="First segment.", start=0.0, duration=1.0),
+            MockTranscriptSnippet(text="Second segment.", start=1.0, duration=1.0),
+            MockTranscriptSnippet(text="Third segment.", start=2.0, duration=1.0),
         ]
 
         with patch(
             "src.agent.domains.collector.tools.youtube_tool.YouTubeTranscriptApi"
-        ) as mock_api:
-            mock_api.get_transcript.return_value = mock_transcript_data
+        ) as mock_api_class:
+            mock_instance = MagicMock()
+            mock_api_class.return_value = mock_instance
+            mock_instance.fetch.return_value = mock_transcript_data
 
             result = get_transcript("dQw4w9WgXcQ")
 
@@ -169,14 +189,16 @@ class TestGetTranscript:
     def test_get_transcript_duration(self) -> None:
         """자막 전체 길이 계산."""
         mock_transcript_data = [
-            {"text": "First.", "start": 0.0, "duration": 2.0},
-            {"text": "Last.", "start": 58.0, "duration": 2.0},
+            MockTranscriptSnippet(text="First.", start=0.0, duration=2.0),
+            MockTranscriptSnippet(text="Last.", start=58.0, duration=2.0),
         ]
 
         with patch(
             "src.agent.domains.collector.tools.youtube_tool.YouTubeTranscriptApi"
-        ) as mock_api:
-            mock_api.get_transcript.return_value = mock_transcript_data
+        ) as mock_api_class:
+            mock_instance = MagicMock()
+            mock_api_class.return_value = mock_instance
+            mock_instance.fetch.return_value = mock_transcript_data
 
             result = get_transcript("dQw4w9WgXcQ")
 
