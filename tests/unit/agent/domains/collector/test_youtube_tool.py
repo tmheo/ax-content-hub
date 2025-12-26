@@ -11,6 +11,7 @@ from src.agent.domains.collector.tools.youtube_tool import (
     extract_video_id,
     fetch_youtube,
     get_transcript,
+    is_channel_url,
 )
 
 
@@ -69,6 +70,52 @@ class TestExtractVideoId:
     def test_extract_empty_string(self) -> None:
         """빈 문자열."""
         assert extract_video_id("") is None
+
+
+class TestIsChannelUrl:
+    """Tests for is_channel_url function."""
+
+    def test_handle_url(self) -> None:
+        """@handle 형식 채널 URL."""
+        assert is_channel_url("https://www.youtube.com/@anthropic-ai") is True
+
+    def test_channel_id_url(self) -> None:
+        """channel ID 형식 URL."""
+        assert (
+            is_channel_url("https://www.youtube.com/channel/UCxxxxxxxxxxxxxxxx") is True
+        )
+
+    def test_c_url(self) -> None:
+        """/c/ 형식 채널 URL."""
+        assert is_channel_url("https://www.youtube.com/c/channelname") is True
+
+    def test_user_url(self) -> None:
+        """/user/ 형식 채널 URL."""
+        assert is_channel_url("https://www.youtube.com/user/username") is True
+
+    def test_video_url_is_not_channel(self) -> None:
+        """영상 URL은 채널이 아님."""
+        assert is_channel_url("https://www.youtube.com/watch?v=dQw4w9WgXcQ") is False
+
+    def test_shorts_url_is_not_channel(self) -> None:
+        """Shorts URL은 채널이 아님."""
+        assert is_channel_url("https://www.youtube.com/shorts/dQw4w9WgXcQ") is False
+
+    def test_embed_url_is_not_channel(self) -> None:
+        """embed URL은 채널이 아님."""
+        assert is_channel_url("https://www.youtube.com/embed/dQw4w9WgXcQ") is False
+
+    def test_short_url_is_not_channel(self) -> None:
+        """youtu.be 단축 URL은 채널이 아님."""
+        assert is_channel_url("https://youtu.be/dQw4w9WgXcQ") is False
+
+    def test_empty_string(self) -> None:
+        """빈 문자열."""
+        assert is_channel_url("") is False
+
+    def test_non_youtube_url(self) -> None:
+        """YouTube가 아닌 URL."""
+        assert is_channel_url("https://example.com/@handle") is False
 
 
 class TestGetTranscript:

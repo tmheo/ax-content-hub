@@ -145,21 +145,41 @@ class ContentPipeline:
     def _collect_from_youtube(self, source: Source) -> list[str]:
         """YouTube 소스에서 수집.
 
+        채널 URL이면 최신 영상들을 수집하고,
+        개별 영상 URL이면 해당 영상만 수집합니다.
+
         Args:
             source: YouTube 소스
 
         Returns:
             수집된 콘텐츠 ID 목록
         """
-        from src.agent.domains.collector.tools.youtube_tool import fetch_channel_videos
-
-        contents = fetch_channel_videos(
-            source_id=source.id,
-            channel_url=str(source.url),
-            content_repo=self.content_repo,
-            max_videos=10,
+        from src.agent.domains.collector.tools.youtube_tool import (
+            fetch_channel_videos,
+            fetch_youtube,
+            is_channel_url,
         )
-        return [c.id for c in contents]
+
+        url = str(source.url)
+
+        if is_channel_url(url):
+            # 채널 URL: 최신 영상들 수집
+            contents = fetch_channel_videos(
+                source_id=source.id,
+                channel_url=url,
+                content_repo=self.content_repo,
+                max_videos=10,
+            )
+            return [c.id for c in contents]
+        else:
+            # 개별 영상 URL: 단일 영상 수집
+            content = fetch_youtube(
+                source_id=source.id,
+                video_url=url,
+                video_title=source.name,  # 소스 이름을 제목으로 사용
+                content_repo=self.content_repo,
+            )
+            return [content.id] if content else []
 
     def _handle_process_task(self, payload: dict[str, str]) -> None:
         """Cloud Tasks process 핸들러 (direct 모드용).

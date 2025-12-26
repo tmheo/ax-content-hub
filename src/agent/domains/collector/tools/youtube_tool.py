@@ -77,6 +77,40 @@ def extract_video_id(url_or_id: str) -> str | None:
     return None
 
 
+def is_channel_url(url: str) -> bool:
+    """YouTube URL이 채널 URL인지 확인.
+
+    Args:
+        url: YouTube URL.
+
+    Returns:
+        채널 URL이면 True, 아니면 False.
+    """
+    if not url:
+        return False
+
+    parsed = urlparse(url)
+
+    # youtube.com 도메인 확인
+    if "youtube.com" not in parsed.netloc:
+        return False
+
+    path = parsed.path
+
+    # 채널 URL 패턴들
+    # /@handle, /channel/UC..., /c/channelname, /user/username
+    if path.startswith("/@"):
+        return True
+    if path.startswith("/channel/"):
+        return True
+    if path.startswith("/c/"):
+        return True
+    if path.startswith("/user/"):
+        return True
+
+    return False
+
+
 def get_transcript(
     video_id: str,
     languages: list[str] | None = None,
