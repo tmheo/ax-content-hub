@@ -32,37 +32,131 @@ uv run pre-commit install
 
 # 환경 변수 설정
 cp .env.example .env
-# .env 파일에 필수 값 입력
+# .env 파일에 필수 값 입력 (GCP_PROJECT_ID, GOOGLE_API_KEY, SLACK_BOT_TOKEN, SLACK_SIGNING_SECRET)
 ```
 
 ### 2. Firestore 에뮬레이터 시작
 
 ```bash
+# Docker로 에뮬레이터 시작
 docker compose up -d
+
+# 에뮬레이터 상태 확인
+curl http://localhost:8086
 ```
 
 ### 3. 개발 서버 시작
 
 ```bash
+# Firestore 에뮬레이터 연결 설정
+export FIRESTORE_EMULATOR_HOST=localhost:8086
+
+# 개발 서버 시작
 uv run uvicorn src.api.main:app --reload --port 8080
 
 # 헬스체크
 curl http://localhost:8080/health
 ```
 
-## 개발
+### 4. API 테스트
 
 ```bash
-# 테스트
+# 소스 생성
+curl -X POST http://localhost:8080/api/sources \
+  -H "Content-Type: application/json" \
+  -d '{"name": "GeekNews", "type": "rss", "url": "https://news.hada.io/rss/news"}'
+
+# 수집 트리거 (로컬에서는 direct 모드로 즉시 실행)
+curl -X POST http://localhost:8080/scheduler/collect
+
+# 콘텐츠 조회
+curl http://localhost:8080/api/sources
+```
+
+## 개발
+
+### 테스트 실행
+
+```bash
+# 유닛 테스트 (기본, 에뮬레이터 불필요)
 uv run pytest tests/ -v
+
+# 통합 테스트 (Firestore 에뮬레이터 필요)
+FIRESTORE_EMULATOR_HOST=localhost:8086 uv run pytest -m integration -v
+
+# 전체 테스트 (유닛 + 통합)
+FIRESTORE_EMULATOR_HOST=localhost:8086 uv run pytest -m '' -v
 
 # 커버리지 포함
 uv run pytest --cov=src tests/
+```
 
-# 코드 품질
-uv run ruff check --fix src/ tests/
-uv run ruff format src/ tests/
-uv run mypy src/
+### 코드 품질
+
+```bash
+uv run ruff check --fix src/ tests/   # 린팅
+uv run ruff format src/ tests/         # 포맷팅
+uv run mypy src/                        # 타입 체크
+```
+
+### 에뮬레이터 관리
+
+```bash
+# 에뮬레이터 시작
+docker compose up -d
+
+# 에뮬레이터 중지
+docker compose down
+
+# 로그 확인
+docker compose logs -f
+```
+
+## Slack 앱 설정
+
+### 1. Slack 앱 생성
+
+1. [Slack API](https://api.slack.com/apps)에서 **Create New App** 클릭
+2. **From scratch** 선택
+3. App Name: `AX Content Hub` (또는 원하는 이름)
+4. Workspace 선택 후 **Create App**
+
+### 2. OAuth & Permissions 설정
+
+**OAuth & Permissions** 메뉴에서 Bot Token Scopes 추가:
+
+| Scope | 설명 |
+|-------|------|
+| `chat:write` | 다이제스트 메시지 전송 |
+| `chat:write.public` | 초대 없이 공개 채널에 메시지 전송 |
+
+> **Note**: 비공개 채널에 다이제스트를 발송하려면 봇을 해당 채널에 초대해야 합니다.
+
+### 3. App Home 설정 (선택)
+
+1. **App Home** 메뉴로 이동
+2. **Your App's Presence in Slack** 섹션에서:
+   - **App Display Name** → **Edit** 클릭
+   - **Display Name (Bot Name)**: `AX Content Hub`
+   - **Default Name**: `ax-content-hub`
+
+### 4. 앱 설치
+
+1. **Install App** 메뉴에서 **Install to Workspace** 클릭
+2. 권한 요청 화면에서 **Allow** 클릭
+3. **Bot User OAuth Token** 복사 → `.env`의 `SLACK_BOT_TOKEN`에 설정
+
+### 5. Signing Secret 설정
+
+1. **Basic Information** 메뉴로 이동
+2. **App Credentials** 섹션에서 **Signing Secret** 복사
+3. `.env`의 `SLACK_SIGNING_SECRET`에 설정
+
+### 6. 채널에 봇 초대
+
+다이제스트를 받을 채널에서:
+```
+/invite @AX Content Hub
 ```
 
 ## 필수 환경 변수
@@ -71,7 +165,7 @@ uv run mypy src/
 |------|------|
 | `GCP_PROJECT_ID` | GCP 프로젝트 ID |
 | `GOOGLE_API_KEY` | Google AI API 키 (Gemini) |
-| `SLACK_BOT_TOKEN` | Slack Bot OAuth 토큰 |
+| `SLACK_BOT_TOKEN` | Slack Bot OAuth 토큰 (`xoxb-`로 시작) |
 | `SLACK_SIGNING_SECRET` | Slack 서명 검증 시크릿 |
 
-자세한 내용은 [CLAUDE.md](CLAUDE.md)를 참조하세요.
+자세한 내용은 [CLAUDE.md](CLAUDE.md) 및 [.env.example](.env.example)을 참조하세요.

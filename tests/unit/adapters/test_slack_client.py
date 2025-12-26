@@ -12,11 +12,14 @@ class TestSlackClient:
     def mock_web_client(self) -> MagicMock:
         """Create a mock Slack WebClient."""
         mock_client = MagicMock()
-        mock_client.chat_postMessage.return_value = {
+        # Slack SDK의 SlackResponse는 .data 속성으로 dict 반환
+        mock_response = MagicMock()
+        mock_response.data = {
             "ok": True,
             "ts": "1234567890.123456",
             "channel": "C12345678",
         }
+        mock_client.chat_postMessage.return_value = mock_response
         return mock_client
 
     def test_post_message_success(self, mock_web_client: MagicMock) -> None:
@@ -36,6 +39,7 @@ class TestSlackClient:
                 channel="C12345678",
                 text="Hello, World!",
                 blocks=None,
+                thread_ts=None,
             )
 
     def test_post_message_with_blocks(self, mock_web_client: MagicMock) -> None:
@@ -61,6 +65,7 @@ class TestSlackClient:
                 channel="C12345678",
                 text="Fallback text",
                 blocks=blocks,
+                thread_ts=None,
             )
 
     def test_post_message_error(self, mock_web_client: MagicMock) -> None:

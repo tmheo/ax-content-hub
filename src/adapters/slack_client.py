@@ -1,6 +1,6 @@
 """Slack API client."""
 
-from typing import Any
+from typing import Any, cast
 
 from slack_sdk import WebClient
 
@@ -21,6 +21,7 @@ class SlackClient:
         channel: str,
         text: str,
         blocks: list[dict[str, Any]] | None = None,
+        thread_ts: str | None = None,
     ) -> dict[str, Any]:
         """Post a message to a Slack channel.
 
@@ -28,6 +29,7 @@ class SlackClient:
             channel: Channel ID (C...) or name (#channel).
             text: Plain text message (used as fallback for blocks).
             blocks: Optional Block Kit blocks.
+            thread_ts: Optional thread timestamp for replies.
 
         Returns:
             Slack API response.
@@ -39,5 +41,6 @@ class SlackClient:
             channel=channel,
             text=text,
             blocks=blocks,
+            thread_ts=thread_ts,
         )
-        return dict(response)
+        return cast(dict[str, Any], response.data)

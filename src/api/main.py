@@ -7,6 +7,11 @@ from fastapi import FastAPI
 
 from src.adapters.firestore_client import FirestoreClient
 from src.adapters.slack_client import SlackClient
+from src.adapters.tasks_client import TasksClient
+from src.api.internal_tasks import router as internal_tasks_router
+from src.api.scheduler import router as scheduler_router
+from src.api.sources import router as sources_router
+from src.api.subscriptions import router as subscriptions_router
 from src.config.logging import configure_logging, get_logger
 from src.config.settings import Settings
 
@@ -32,6 +37,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     app.state.settings = settings
     app.state.firestore = FirestoreClient(project_id=settings.GCP_PROJECT_ID)
     app.state.slack = SlackClient(token=settings.SLACK_BOT_TOKEN)
+    app.state.tasks = TasksClient(mode=settings.TASKS_MODE)
 
     logger.info("Application started successfully")
 
@@ -47,6 +53,12 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+# Register routers
+app.include_router(scheduler_router)
+app.include_router(internal_tasks_router)
+app.include_router(sources_router)
+app.include_router(subscriptions_router)
 
 
 @app.get("/health")
