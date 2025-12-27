@@ -69,7 +69,9 @@ class DigestService:
         content_ids = [c.id for c in contents]
 
         # 채널 ID 추출
-        channel_id = subscription.platform_config.get("channel_id", "")
+        channel_id = subscription.platform_config.get("channel_id")
+        if not channel_id:
+            raise ValueError(f"Missing channel_id in subscription {subscription.id}")
 
         # 다이제스트 생성
         digest = Digest(
@@ -109,10 +111,12 @@ class DigestService:
 
             if result.success and result.message_ts:
                 self.digest_repo.update_sent_info(digest.id, result.message_ts)
-                # 콘텐츠를 다이제스트에 포함됨으로 마킹 (중복 발송 방지)
-                self.content_repo.mark_as_included_in_digest(
-                    digest.content_ids, digest.id
-                )
+                # 실제로 발송된 콘텐츠만 마킹 (find_by_ids가 찾지 못한 것은 제외)
+                sent_content_ids = [c.id for c in contents]
+                if sent_content_ids:
+                    self.content_repo.mark_as_included_in_digest(
+                        sent_content_ids, digest.id
+                    )
                 return True
             else:
                 error_msg = result.error or "Unknown error"
