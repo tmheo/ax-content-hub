@@ -12,6 +12,37 @@ AX(AI Transformation) 콘텐츠를 큐레이션하여 슬랙으로 전달하는 
 - **처리**: 영→한 번역, GeekNews 스타일 요약, AX 관련성 스코어링
 - **배포**: 슬랙 다이제스트 발송
 
+## 아키텍처
+
+### 시스템 개요
+
+![Architecture](docs/architecture.png)
+
+### 데이터 흐름
+
+| 단계 | 주기 | 설명 |
+|------|------|------|
+| **1. 수집** | 매시간 | RSS/YouTube → Content 생성 → Firestore 저장 |
+| **2. 처리** | 수집 직후 | Content(원문) → 번역 → 요약 → 스코어링 (Gemini) |
+| **3. 배포** | 매일 09:00 | 구독별 콘텐츠 조회 → 다이제스트 생성 → Slack 발송×N |
+
+### 스케줄
+
+| 작업 | 주기 | 엔드포인트 | 설명 |
+|------|------|-----------|------|
+| 수집 | 매시간 | `POST /internal/collect` | 활성 소스에서 새 콘텐츠 수집 및 처리 |
+| 발송 | 매일 09:00 KST | `POST /internal/distribute` | 구독별 다이제스트 생성 및 Slack 발송 |
+
+### 멱등성 키
+
+| 엔티티 | 키 형식 | 예시 |
+|--------|---------|------|
+| Content | `{source_id}:{sha256(normalized_url)}` | `src_001:a1b2c3d4...` |
+| Digest | `{subscription_id}:{YYYY-MM-DD}` | `sub_001:2025-12-27` |
+
+- **Content**: 같은 URL의 콘텐츠는 중복 수집되지 않음
+- **Digest**: 같은 구독에 같은 날짜로 하루 1회만 발송
+
 ## 기술 스택
 
 - Python 3.12+ / uv
