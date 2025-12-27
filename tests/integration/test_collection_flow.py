@@ -3,7 +3,6 @@
 Firestore 에뮬레이터와 함께 RSS 수집 파이프라인을 테스트합니다.
 """
 
-import os
 import uuid
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
@@ -16,26 +15,7 @@ from src.models.source import Source, SourceType
 from src.repositories.content_repo import ContentRepository
 from src.repositories.source_repo import SourceRepository
 from src.services.content_pipeline import ContentPipeline
-
-
-def is_emulator_available() -> bool:
-    """Firestore 에뮬레이터 사용 가능 여부 확인."""
-    import socket
-
-    host = os.environ.get("FIRESTORE_EMULATOR_HOST", "localhost:8086")
-    host_parts = host.split(":")
-    hostname = host_parts[0]
-    port = int(host_parts[1]) if len(host_parts) > 1 else 8086
-
-    try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(1)
-        result = sock.connect_ex((hostname, port))
-        sock.close()
-        return result == 0
-    except Exception:
-        return False
-
+from tests.utils import is_emulator_available
 
 # Firestore 에뮬레이터가 없으면 테스트 스킵
 pytestmark = [
@@ -319,6 +299,7 @@ class TestCollectionFlowIntegration:
             # 초기 last_fetched_at 확인
             initial_source = source_repo.get_by_id(test_source.id)
             assert initial_source is not None
+            initial_last_fetched = initial_source.last_fetched_at
 
             pipeline = ContentPipeline(
                 source_repo=source_repo,
@@ -331,6 +312,13 @@ class TestCollectionFlowIntegration:
             # Firestore에서 콘텐츠 확인
             contents = content_repo.find_by_source(test_source.id)
             assert len(contents) == 3
+
+            # last_fetched_at 업데이트 확인
+            updated_source = source_repo.get_by_id(test_source.id)
+            assert updated_source is not None
+            assert updated_source.last_fetched_at is not None
+            if initial_last_fetched is not None:
+                assert updated_source.last_fetched_at > initial_last_fetched
 
     def test_collect_preserves_content_metadata(
         self,

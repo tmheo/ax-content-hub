@@ -37,7 +37,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     app.state.settings = settings
     app.state.firestore = FirestoreClient(project_id=settings.GCP_PROJECT_ID)
     app.state.slack = SlackClient(token=settings.SLACK_BOT_TOKEN)
-    app.state.tasks = TasksClient(mode=settings.TASKS_MODE)
+    app.state.tasks = TasksClient(
+        mode=settings.TASKS_MODE,
+        project_id=settings.GCP_PROJECT_ID,
+        target_url=settings.TASKS_TARGET_URL,
+        service_account_email=settings.TASKS_SERVICE_ACCOUNT_EMAIL,
+    )
 
     logger.info("Application started successfully")
 

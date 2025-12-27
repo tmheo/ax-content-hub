@@ -44,7 +44,7 @@ class SubscriptionRepository(BaseRepository[Subscription]):
         Returns:
             구독 또는 None.
         """
-        results = self.find_by([("channel_id", "==", channel_id)])
+        results = self.find_by([("platform_config.channel_id", "==", channel_id)])
         return results[0] if results else None
 
     def find_by_frequency(self, frequency: DeliveryFrequency) -> list[Subscription]:
@@ -56,7 +56,7 @@ class SubscriptionRepository(BaseRepository[Subscription]):
         Returns:
             해당 빈도의 구독 목록.
         """
-        return self.find_by([("delivery_frequency", "==", frequency.value)])
+        return self.find_by([("preferences.frequency", "==", frequency.value)])
 
     def find_due_for_delivery(self, delivery_time: str) -> list[Subscription]:
         """배송 예정 구독 조회.
@@ -72,7 +72,7 @@ class SubscriptionRepository(BaseRepository[Subscription]):
         return self.find_by(
             [
                 ("is_active", "==", True),
-                ("delivery_time", "==", delivery_time),
+                ("preferences.delivery_time", "==", delivery_time),
             ]
         )
 

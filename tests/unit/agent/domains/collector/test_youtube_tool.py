@@ -188,7 +188,7 @@ class TestGetTranscript:
         with patch(
             "src.agent.domains.collector.tools.youtube_tool.YouTubeTranscriptApi"
         ) as mock_api_class:
-            from youtube_transcript_api._errors import TranscriptsDisabled
+            from youtube_transcript_api import TranscriptsDisabled
 
             mock_instance = MagicMock()
             mock_api_class.return_value = mock_instance

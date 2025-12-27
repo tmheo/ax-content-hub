@@ -4,7 +4,6 @@ Firestore 에뮬레이터와 함께 콘텐츠 처리 파이프라인을 테스�
 번역 → 요약 → 스코어링 전체 플로우를 검증합니다.
 """
 
-import os
 import uuid
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
@@ -17,26 +16,7 @@ from src.models.content import Content, ProcessingStatus
 from src.repositories.content_repo import ContentRepository
 from src.repositories.source_repo import SourceRepository
 from src.services.content_pipeline import ContentPipeline
-
-
-def is_emulator_available() -> bool:
-    """Firestore 에뮬레이터 사용 가능 여부 확인."""
-    import socket
-
-    host = os.environ.get("FIRESTORE_EMULATOR_HOST", "localhost:8086")
-    host_parts = host.split(":")
-    hostname = host_parts[0]
-    port = int(host_parts[1]) if len(host_parts) > 1 else 8086
-
-    try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(1)
-        result = sock.connect_ex((hostname, port))
-        sock.close()
-        return result == 0
-    except Exception:
-        return False
-
+from tests.utils import is_emulator_available
 
 # Firestore 에뮬레이터가 없으면 테스트 스킵
 pytestmark = [

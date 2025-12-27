@@ -1,8 +1,8 @@
 services:
   firestore-emulator:
     image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
-    command: gcloud emulators firestore start --host-port=0.0.0.0:8086
+    command: gcloud emulators firestore start --host-port=0.0.0.0:8086 --project=${GCP_PROJECT_ID:-ax-content-hub-dev}
     ports:
       - "8086:8086"
     environment:
-      - FIRESTORE_PROJECT_ID=${GCP_PROJECT_ID:-ax-content-hub-dev}
+      - GCLOUD_PROJECT=${GCP_PROJECT_ID:-ax-content-hub-dev}

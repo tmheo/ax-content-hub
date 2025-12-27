@@ -267,7 +267,7 @@ class TestSourcesEndpoints:
         with patch("src.api.sources.get_source_repo") as mock_get:
             mock_repo = MagicMock()
             mock_repo.get_by_id.return_value = sample_source
-            mock_repo.deactivate_source.return_value = None
+            mock_repo.deactivate.return_value = None
             mock_get.return_value = mock_repo
 
             response = client.post("/sources/src_001/deactivate")
@@ -275,3 +275,4 @@ class TestSourcesEndpoints:
         assert response.status_code == 200
         data = response.json()
         assert data["is_active"] is False
+        mock_repo.deactivate.assert_called_once_with("src_001")

@@ -4,6 +4,7 @@
 """
 
 from datetime import date, datetime
+from enum import Enum
 from typing import Any, ClassVar, Generic, TypeVar
 
 from pydantic import BaseModel, HttpUrl
@@ -137,7 +138,7 @@ class BaseRepository(Generic[T]):
     def _serialize_for_firestore(self, data: Any) -> Any:
         """Firestore에 저장 가능한 형태로 직렬화.
 
-        HttpUrl, date 등 Firestore에서 직접 지원하지 않는 타입을 변환합니다.
+        HttpUrl, date, Enum 등 Firestore에서 직접 지원하지 않는 타입을 변환합니다.
 
         Args:
             data: 변환할 데이터.
@@ -147,6 +148,9 @@ class BaseRepository(Generic[T]):
         """
         if isinstance(data, HttpUrl):
             return str(data)
+        elif isinstance(data, Enum):
+            # Enum을 값으로 변환 (dict/list 처리 전에 실행)
+            return data.value
         elif isinstance(data, date) and not isinstance(data, datetime):
             # date를 datetime으로 변환 (Firestore는 date를 직접 지원하지 않음)
             return datetime.combine(data, datetime.min.time())

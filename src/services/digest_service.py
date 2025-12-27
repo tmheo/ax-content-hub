@@ -60,17 +60,13 @@ class DigestService:
             if existing:
                 return existing
 
-        # 콘텐츠 조회
+        # 콘텐츠 조회 (find_for_digest에서 이미 min_relevance 필터링과 정렬 수행)
         min_relevance = subscription.preferences.min_relevance
         contents = self.content_repo.find_for_digest(
             min_relevance=min_relevance,
         )
 
-        # 관련성 필터링 및 정렬
-        filtered_contents = self._filter_by_relevance(contents, min_relevance)
-        sorted_contents = self._sort_by_relevance(filtered_contents)
-
-        content_ids = [c.id for c in sorted_contents]
+        content_ids = [c.id for c in contents]
 
         # 채널 ID 추출
         channel_id = subscription.platform_config.get("channel_id", "")

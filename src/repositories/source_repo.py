@@ -81,6 +81,8 @@ class SourceRepository(BaseRepository[Source]):
     def increment_error_count(self, source_id: str) -> None:
         """에러 카운트 증가.
 
+        연속 실패 횟수가 3회 이상이면 자동으로 비활성화합니다.
+
         Args:
             source_id: 소스 ID.
         """
@@ -89,13 +91,19 @@ class SourceRepository(BaseRepository[Source]):
             return
 
         new_count = source.fetch_error_count + 1
+        update_data: dict[str, object] = {
+            "fetch_error_count": new_count,
+            "updated_at": datetime.now(UTC),
+        }
+
+        # 연속 실패 3회 이상 시 자동 비활성화
+        if new_count >= 3:
+            update_data["is_active"] = False
+
         self._db.update(
             self.collection_name,
             source_id,
-            {
-                "fetch_error_count": new_count,
-                "updated_at": datetime.now(UTC),
-            },
+            update_data,
         )
 
     def reset_error_count(self, source_id: str) -> None:
