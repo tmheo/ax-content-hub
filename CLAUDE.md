@@ -46,7 +46,9 @@ uv run pre-commit run --all-files      # 전체 파일 검사
 
 ## 현재 구현 상태
 
-**Phase 0 완료** - 프로젝트 초기화 및 기반 인프라
+**Phase 1 완료** - MVP 파이프라인 (수집 → 처리 → 배포)
+
+### 인프라 (Phase 0)
 
 | 구성요소 | 상태 | 설명 |
 |----------|------|------|
@@ -56,52 +58,119 @@ uv run pre-commit run --all-files      # 전체 파일 검사
 | Slack | ✅ | 메시지 전송 클라이언트 |
 | Tasks | ✅ | Cloud Tasks / direct 모드 |
 | Cognee | ✅ | 메모리 도구 래퍼 (지연 로딩) |
-| FastAPI | ✅ | /health 엔드포인트 |
+| Gemini | ✅ | Google AI 클라이언트 (번역/요약/스코어링) |
 | CI/CD | ✅ | GitHub Actions (ruff, mypy, pytest) |
+
+### 도메인 모델 (Phase 1)
+
+| 모델 | 상태 | 설명 |
+|------|------|------|
+| Source | ✅ | 콘텐츠 소스 (RSS, YouTube, Web) |
+| Content | ✅ | 수집/처리된 콘텐츠 (상태 머신 포함) |
+| Subscription | ✅ | 슬랙 채널별 구독 설정 |
+| Digest | ✅ | 발송된 다이제스트 |
+
+### 수집 도구 (Collector)
+
+| 도구 | 상태 | 설명 |
+|------|------|------|
+| rss_tool | ✅ | RSS 피드 파싱 (feedparser) |
+| youtube_tool | ✅ | YouTube 자막 추출 |
+
+### 처리 도구 (Processor)
+
+| 도구 | 상태 | 설명 |
+|------|------|------|
+| translator_tool | ✅ | 영→한 번역 (Gemini) |
+| summarizer_tool | ✅ | GeekNews 스타일 요약 (Gemini) |
+| scorer_tool | ✅ | AX 관련성 스코어링 (Gemini) |
+
+### 배포 도구 (Distributor)
+
+| 도구 | 상태 | 설명 |
+|------|------|------|
+| slack_sender_tool | ✅ | 슬랙 다이제스트 발송 |
+
+### 서비스
+
+| 서비스 | 상태 | 설명 |
+|--------|------|------|
+| ContentPipeline | ✅ | 수집 + 처리 오케스트레이션 |
+| DigestService | ✅ | 다이제스트 생성 + 발송 |
+| QualityFilter | ✅ | 관련성 필터링 + 정렬 |
+
+### API 엔드포인트
+
+| 경로 | 상태 | 설명 |
+|------|------|------|
+| GET /health | ✅ | 헬스체크 |
+| /api/sources/* | ✅ | 소스 CRUD |
+| /api/subscriptions/* | ✅ | 구독 CRUD |
+| POST /scheduler/collect | ✅ | 수집 트리거 (Cloud Scheduler) |
+| POST /scheduler/distribute | ✅ | 배포 트리거 (Cloud Scheduler) |
+| POST /internal/tasks/process | ✅ | 콘텐츠 처리 (Cloud Tasks) |
+| POST /internal/tasks/send-digest | ✅ | 다이제스트 발송 (Cloud Tasks) |
+| POST /internal/tasks/collect-source | ✅ | 소스별 수집 (Cloud Tasks) |
 
 ## 프로젝트 구조
 
 ```
 src/
-├── api/                        # FastAPI 앱
-│   └── main.py                 # lifespan, /health ✅
+├── api/                           # FastAPI 앱
+│   ├── main.py                    # lifespan, /health
+│   ├── sources.py                 # 소스 CRUD API
+│   ├── subscriptions.py           # 구독 CRUD API
+│   ├── scheduler.py               # Cloud Scheduler 트리거
+│   └── internal_tasks.py          # Cloud Tasks 콜백
 │
-├── agent/                      # Google ADK 에이전트
-│   └── core/
-│       └── cognee_tools.py     # Cognee 메모리 도구 ✅
+├── agent/                         # Google ADK 에이전트
+│   ├── core/
+│   │   └── cognee_tools.py        # Cognee 메모리 도구
+│   └── domains/
+│       ├── collector/tools/       # 수집 도구 (rss, youtube)
+│       ├── processor/tools/       # 처리 도구 (translate, summarize, score)
+│       └── distributor/tools/     # 배포 도구 (slack_sender)
 │
-├── adapters/                   # 외부 서비스 클라이언트
-│   ├── firestore_client.py     # ✅
-│   ├── slack_client.py         # ✅
-│   └── tasks_client.py         # ✅
+├── adapters/                      # 외부 서비스 클라이언트
+│   ├── firestore_client.py        # Firestore CRUD
+│   ├── slack_client.py            # Slack 메시지 전송
+│   ├── tasks_client.py            # Cloud Tasks 큐
+│   └── gemini_client.py           # Google AI (Gemini)
+│
+├── services/                      # 비즈니스 로직
+│   ├── content_pipeline.py        # 수집 + 처리 파이프라인
+│   ├── digest_service.py          # 다이제스트 생성/발송
+│   └── quality_filter.py          # 관련성 필터링
+│
+├── models/                        # Pydantic 도메인 모델
+│   ├── source.py                  # Source (RSS, YouTube, Web)
+│   ├── content.py                 # Content (처리 상태 포함)
+│   ├── subscription.py            # Subscription (채널별 구독)
+│   └── digest.py                  # Digest (발송 기록)
+│
+├── repositories/                  # 데이터 접근 계층
+│   ├── base.py                    # BaseRepository
+│   ├── source_repo.py             # SourceRepository
+│   ├── content_repo.py            # ContentRepository
+│   ├── subscription_repo.py       # SubscriptionRepository
+│   └── digest_repo.py             # DigestRepository
 │
 └── config/
-    ├── settings.py             # Pydantic Settings ✅
-    └── logging.py              # structlog ✅
+    ├── settings.py                # Pydantic Settings
+    └── logging.py                 # structlog 설정
 
 tests/
-├── conftest.py                 # 공통 fixtures
-└── unit/
-    ├── adapters/               # 어댑터 테스트 (30 tests)
-    ├── agent/
-    ├── api/
-    └── config/
-```
-
-### 향후 구현 예정 (Phase 1+)
-
-```
-src/
-├── agent/
-│   ├── content_hub_agent.py    # 메인 오케스트레이터
-│   └── domains/
-│       ├── collector/          # 수집 에이전트
-│       ├── processor/          # 처리 에이전트
-│       └── distributor/        # 배포 에이전트
-│
-├── services/                   # 비즈니스 로직
-├── models/                     # Pydantic 모델
-└── repositories/               # 데이터 접근
+├── conftest.py                    # 공통 fixtures
+├── unit/                          # 유닛 테스트 (320 tests)
+│   ├── adapters/
+│   ├── agent/
+│   ├── api/
+│   ├── models/
+│   ├── repositories/
+│   └── services/
+└── integration/                   # 통합 테스트 (13 tests)
+    ├── test_collection_flow.py    # RSS 수집 플로우
+    └── test_processing_flow.py    # 처리 파이프라인
 ```
 
 ## 아키텍처
@@ -152,18 +221,30 @@ Cognee를 통해 ADK 에이전트에 지속적 메모리 제공:
 | `subscriptions` | 구독 정보 (슬랙 채널별) |
 | `digests` | 발송된 다이제스트 |
 
-## 필수 환경 변수
+## 환경 변수
+
+자세한 설명은 `.env.example` 파일 참조.
 
 ```bash
+# 필수 (Required)
 GCP_PROJECT_ID=               # GCP 프로젝트 ID
 GOOGLE_API_KEY=               # Google AI API 키 (Gemini)
 SLACK_BOT_TOKEN=              # Slack Bot OAuth 토큰
 SLACK_SIGNING_SECRET=         # Slack 서명 검증 시크릿
 
-# Cloud Tasks (프로덕션)
+# 선택 - 로컬 개발 (Optional - Local Development)
+FIRESTORE_EMULATOR_HOST=localhost:8086  # Firestore 에뮬레이터
+
+# 선택 - Cloud Tasks (Optional - Production)
 TASKS_MODE=direct             # direct (로컬) 또는 cloud_tasks (프로덕션)
 TASKS_TARGET_URL=             # Cloud Tasks 콜백 URL
 TASKS_SERVICE_ACCOUNT_EMAIL=  # 서비스 계정 이메일
+
+# 선택 - 파이프라인 설정 (Optional - Pipeline Config)
+GEMINI_MODEL=gemini-2.0-flash-001     # Gemini 모델
+COLLECTION_INTERVAL_HOURS=1           # 수집 주기 (시간)
+DIGEST_DELIVERY_TIME=09:00            # 다이제스트 발송 시간 (KST)
+MIN_RELEVANCE_SCORE=0.3               # 최소 관련성 점수
 ```
 
 ## 코드 품질 규칙

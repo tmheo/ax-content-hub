@@ -262,7 +262,9 @@ dependencies = [
     { name = "google-adk" },
     { name = "google-cloud-firestore" },
     { name = "google-cloud-tasks" },
+    { name = "google-genai" },
     { name = "httpx" },
+    { name = "markdown-to-mrkdwn" },
     { name = "playwright" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
@@ -286,6 +288,7 @@ dev = [
 [package.dev-dependencies]
 dev = [
     { name = "pre-commit" },
+    { name = "responses" },
 ]
 
 [package.metadata]
@@ -297,7 +300,9 @@ requires-dist = [
     { name = "google-adk", specifier = ">=1.20.0" },
     { name = "google-cloud-firestore", specifier = ">=2.0.0" },
     { name = "google-cloud-tasks", specifier = ">=2.20.0" },
+    { name = "google-genai", specifier = ">=1.0.0" },
     { name = "httpx", specifier = ">=0.27.0" },
+    { name = "markdown-to-mrkdwn", specifier = ">=0.3.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.0.0" },
     { name = "playwright", specifier = ">=1.40.0" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.0.0" },
@@ -316,7 +321,10 @@ requires-dist = [
 provides-extras = ["dev"]
 
 [package.metadata.requires-dev]
-dev = [{ name = "pre-commit", specifier = ">=4.0.0" }]
+dev = [
+    { name = "pre-commit", specifier = ">=4.0.0" },
+    { name = "responses", specifier = ">=0.25.8" },
+]
 
 [[package]]
 name = "bcrypt"
@@ -2439,6 +2447,15 @@ wheels = [
 ]
 
 [[package]]
+name = "markdown-to-mrkdwn"
+version = "0.3.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/c0/fa/da1dcdbf571cf008e42cf5dc45dfc9466d59b8c66d7550c3cb9cf7a73e2a/markdown_to_mrkdwn-0.3.0.tar.gz", hash = "sha256:19f28dfba419899d87088a87fa2db50f130ce290877298b4747e71175a065175", size = 13767 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/bc/ae/4e698c569807d236259149873e7a10fa6d08d587c4401fb238894677a1cd/markdown_to_mrkdwn-0.3.0-py3-none-any.whl", hash = "sha256:6573b93e4335d2994b191c874904ba336b4d76f0937316d9cfbf9577d8bf38a2", size = 13171 },
+]
+
+[[package]]
 name = "markupsafe"
 version = "3.0.3"
 source = { registry = "https://pypi.org/simple" }
@@ -3886,6 +3903,20 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/c9/74/b3ff8e6c8446842c3f5c837e9c3dfcfe2018ea6ecef224c710c85ef728f4/requests-2.32.5.tar.gz", hash = "sha256:dbba0bac56e100853db0ea71b82b4dfd5fe2bf6d3754a8893c3af500cec7d7cf", size = 134517 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/1e/db/4254e3eabe8020b458f1a747140d32277ec7a271daf1d235b70dc0b4e6e3/requests-2.32.5-py3-none-any.whl", hash = "sha256:2462f94637a34fd532264295e186976db0f5d453d1cdd31473c85a6a161affb6", size = 64738 },
+]
+
+[[package]]
+name = "responses"
+version = "0.25.8"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pyyaml" },
+    { name = "requests" },
+    { name = "urllib3" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/0e/95/89c054ad70bfef6da605338b009b2e283485835351a9935c7bfbfaca7ffc/responses-0.25.8.tar.gz", hash = "sha256:9374d047a575c8f781b94454db5cab590b6029505f488d12899ddb10a4af1cf4", size = 79320 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1c/4c/cc276ce57e572c102d9542d383b2cfd551276581dc60004cb94fe8774c11/responses-0.25.8-py3-none-any.whl", hash = "sha256:0c710af92def29c8352ceadff0c3fe340ace27cf5af1bbe46fb71275bcd2831c", size = 34769 },
 ]
 
 [[package]]

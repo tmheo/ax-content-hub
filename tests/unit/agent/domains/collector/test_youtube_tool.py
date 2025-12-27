@@ -1,0 +1,427 @@
+"""Tests for YouTube transcript collection tool."""
+
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from src.agent.domains.collector.tools.youtube_tool import (
+    YouTubeTranscript,
+    extract_video_id,
+    fetch_youtube,
+    get_transcript,
+    is_channel_url,
+)
+
+
+@dataclass
+class MockTranscriptSnippet:
+    """Mock transcript snippet object (new API format)."""
+
+    text: str
+    start: float
+    duration: float
+
+
+class TestExtractVideoId:
+    """Tests for extract_video_id function."""
+
+    def test_extract_from_standard_url(self) -> None:
+        """표준 YouTube URL에서 ID 추출."""
+        url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        assert extract_video_id(url) == "dQw4w9WgXcQ"
+
+    def test_extract_from_short_url(self) -> None:
+        """youtu.be 단축 URL에서 ID 추출."""
+        url = "https://youtu.be/dQw4w9WgXcQ"
+        assert extract_video_id(url) == "dQw4w9WgXcQ"
+
+    def test_extract_from_embed_url(self) -> None:
+        """embed URL에서 ID 추출."""
+        url = "https://www.youtube.com/embed/dQw4w9WgXcQ"
+        assert extract_video_id(url) == "dQw4w9WgXcQ"
+
+    def test_extract_from_url_with_params(self) -> None:
+        """추가 파라미터가 있는 URL에서 ID 추출."""
+        url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=PLtest"
+        assert extract_video_id(url) == "dQw4w9WgXcQ"
+
+    def test_extract_from_url_with_timestamp(self) -> None:
+        """타임스탬프가 있는 URL에서 ID 추출."""
+        url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=120"
+        assert extract_video_id(url) == "dQw4w9WgXcQ"
+
+    def test_extract_from_shorts_url(self) -> None:
+        """Shorts URL에서 ID 추출."""
+        url = "https://www.youtube.com/shorts/dQw4w9WgXcQ"
+        assert extract_video_id(url) == "dQw4w9WgXcQ"
+
+    def test_extract_raw_video_id(self) -> None:
+        """순수 video ID 입력."""
+        video_id = "dQw4w9WgXcQ"
+        assert extract_video_id(video_id) == "dQw4w9WgXcQ"
+
+    def test_extract_invalid_url(self) -> None:
+        """잘못된 URL."""
+        url = "https://example.com/video"
+        assert extract_video_id(url) is None
+
+    def test_extract_empty_string(self) -> None:
+        """빈 문자열."""
+        assert extract_video_id("") is None
+
+
+class TestIsChannelUrl:
+    """Tests for is_channel_url function."""
+
+    def test_handle_url(self) -> None:
+        """@handle 형식 채널 URL."""
+        assert is_channel_url("https://www.youtube.com/@anthropic-ai") is True
+
+    def test_channel_id_url(self) -> None:
+        """channel ID 형식 URL."""
+        assert (
+            is_channel_url("https://www.youtube.com/channel/UCxxxxxxxxxxxxxxxx") is True
+        )
+
+    def test_c_url(self) -> None:
+        """/c/ 형식 채널 URL."""
+        assert is_channel_url("https://www.youtube.com/c/channelname") is True
+
+    def test_user_url(self) -> None:
+        """/user/ 형식 채널 URL."""
+        assert is_channel_url("https://www.youtube.com/user/username") is True
+
+    def test_video_url_is_not_channel(self) -> None:
+        """영상 URL은 채널이 아님."""
+        assert is_channel_url("https://www.youtube.com/watch?v=dQw4w9WgXcQ") is False
+
+    def test_shorts_url_is_not_channel(self) -> None:
+        """Shorts URL은 채널이 아님."""
+        assert is_channel_url("https://www.youtube.com/shorts/dQw4w9WgXcQ") is False
+
+    def test_embed_url_is_not_channel(self) -> None:
+        """embed URL은 채널이 아님."""
+        assert is_channel_url("https://www.youtube.com/embed/dQw4w9WgXcQ") is False
+
+    def test_short_url_is_not_channel(self) -> None:
+        """youtu.be 단축 URL은 채널이 아님."""
+        assert is_channel_url("https://youtu.be/dQw4w9WgXcQ") is False
+
+    def test_empty_string(self) -> None:
+        """빈 문자열."""
+        assert is_channel_url("") is False
+
+    def test_non_youtube_url(self) -> None:
+        """YouTube가 아닌 URL."""
+        assert is_channel_url("https://example.com/@handle") is False
+
+
+class TestGetTranscript:
+    """Tests for get_transcript function."""
+
+    def test_get_english_transcript(self) -> None:
+        """영어 자막 가져오기."""
+        mock_transcript_data = [
+            MockTranscriptSnippet(text="Hello world.", start=0.0, duration=2.0),
+            MockTranscriptSnippet(text="This is a test.", start=2.0, duration=2.0),
+        ]
+
+        with patch(
+            "src.agent.domains.collector.tools.youtube_tool.YouTubeTranscriptApi"
+        ) as mock_api_class:
+            mock_instance = MagicMock()
+            mock_api_class.return_value = mock_instance
+            mock_instance.fetch.return_value = mock_transcript_data
+
+            result = get_transcript("dQw4w9WgXcQ")
+
+            assert result is not None
+            assert result.video_id == "dQw4w9WgXcQ"
+            assert "Hello world" in result.text
+            assert "This is a test" in result.text
+            assert result.language == "en"
+
+    def test_get_korean_transcript(self) -> None:
+        """한국어 자막 가져오기."""
+        mock_transcript_data = [
+            MockTranscriptSnippet(text="안녕하세요.", start=0.0, duration=2.0),
+            MockTranscriptSnippet(text="테스트입니다.", start=2.0, duration=2.0),
+        ]
+
+        with patch(
+            "src.agent.domains.collector.tools.youtube_tool.YouTubeTranscriptApi"
+        ) as mock_api_class:
+            mock_instance = MagicMock()
+            mock_api_class.return_value = mock_instance
+            mock_instance.fetch.return_value = mock_transcript_data
+
+            result = get_transcript("dQw4w9WgXcQ", languages=["ko"])
+
+            assert result is not None
+            assert "안녕하세요" in result.text
+            mock_instance.fetch.assert_called_once_with("dQw4w9WgXcQ", languages=["ko"])
+
+    def test_get_transcript_fallback_languages(self) -> None:
+        """언어 폴백 테스트."""
+        mock_transcript_data = [
+            MockTranscriptSnippet(text="Fallback content.", start=0.0, duration=2.0),
+        ]
+
+        with patch(
+            "src.agent.domains.collector.tools.youtube_tool.YouTubeTranscriptApi"
+        ) as mock_api_class:
+            mock_instance = MagicMock()
+            mock_api_class.return_value = mock_instance
+            mock_instance.fetch.return_value = mock_transcript_data
+
+            result = get_transcript("dQw4w9WgXcQ", languages=["ko", "en"])
+
+            assert result is not None
+            mock_instance.fetch.assert_called_once_with(
+                "dQw4w9WgXcQ", languages=["ko", "en"]
+            )
+
+    def test_get_transcript_no_transcript_available(self) -> None:
+        """자막 없는 경우."""
+        with patch(
+            "src.agent.domains.collector.tools.youtube_tool.YouTubeTranscriptApi"
+        ) as mock_api_class:
+            from youtube_transcript_api import TranscriptsDisabled
+
+            mock_instance = MagicMock()
+            mock_api_class.return_value = mock_instance
+            mock_instance.fetch.side_effect = TranscriptsDisabled("video_id")
+
+            result = get_transcript("dQw4w9WgXcQ")
+
+            assert result is None
+
+    def test_get_transcript_api_error(self) -> None:
+        """API 에러."""
+        with patch(
+            "src.agent.domains.collector.tools.youtube_tool.YouTubeTranscriptApi"
+        ) as mock_api_class:
+            mock_instance = MagicMock()
+            mock_api_class.return_value = mock_instance
+            mock_instance.fetch.side_effect = Exception("API Error")
+
+            result = get_transcript("dQw4w9WgXcQ")
+
+            assert result is None
+
+    def test_get_transcript_concatenates_text(self) -> None:
+        """여러 세그먼트 텍스트 연결."""
+        mock_transcript_data = [
+            MockTranscriptSnippet(text="First segment.", start=0.0, duration=1.0),
+            MockTranscriptSnippet(text="Second segment.", start=1.0, duration=1.0),
+            MockTranscriptSnippet(text="Third segment.", start=2.0, duration=1.0),
+        ]
+
+        with patch(
+            "src.agent.domains.collector.tools.youtube_tool.YouTubeTranscriptApi"
+        ) as mock_api_class:
+            mock_instance = MagicMock()
+            mock_api_class.return_value = mock_instance
+            mock_instance.fetch.return_value = mock_transcript_data
+
+            result = get_transcript("dQw4w9WgXcQ")
+
+            assert result is not None
+            assert "First segment" in result.text
+            assert "Second segment" in result.text
+            assert "Third segment" in result.text
+
+    def test_get_transcript_duration(self) -> None:
+        """자막 전체 길이 계산."""
+        mock_transcript_data = [
+            MockTranscriptSnippet(text="First.", start=0.0, duration=2.0),
+            MockTranscriptSnippet(text="Last.", start=58.0, duration=2.0),
+        ]
+
+        with patch(
+            "src.agent.domains.collector.tools.youtube_tool.YouTubeTranscriptApi"
+        ) as mock_api_class:
+            mock_instance = MagicMock()
+            mock_api_class.return_value = mock_instance
+            mock_instance.fetch.return_value = mock_transcript_data
+
+            result = get_transcript("dQw4w9WgXcQ")
+
+            assert result is not None
+            assert result.duration_seconds == 60.0  # 58.0 + 2.0
+
+
+class TestFetchYoutube:
+    """Tests for fetch_youtube tool function."""
+
+    @pytest.fixture
+    def mock_content_repo(self) -> MagicMock:
+        """Mock ContentRepository."""
+        return MagicMock()
+
+    @pytest.fixture
+    def sample_transcript(self) -> YouTubeTranscript:
+        """샘플 자막 객체."""
+        return YouTubeTranscript(
+            video_id="dQw4w9WgXcQ",
+            text="This is a sample transcript for testing.",
+            language="en",
+            duration_seconds=180.0,
+        )
+
+    def test_fetch_youtube_new_content(
+        self,
+        mock_content_repo: MagicMock,
+        sample_transcript: YouTubeTranscript,
+    ) -> None:
+        """새 콘텐츠 수집."""
+        mock_content_repo.exists_by_content_key.return_value = False
+
+        with patch(
+            "src.agent.domains.collector.tools.youtube_tool.get_transcript"
+        ) as mock_get:
+            mock_get.return_value = sample_transcript
+
+            result = fetch_youtube(
+                source_id="src_youtube",
+                video_url="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+                video_title="Test Video Title",
+                content_repo=mock_content_repo,
+            )
+
+            assert result is not None
+            assert result.source_id == "src_youtube"
+            assert result.original_title == "Test Video Title"
+            mock_content_repo.create.assert_called_once()
+
+    def test_fetch_youtube_duplicate_content(
+        self,
+        mock_content_repo: MagicMock,
+        sample_transcript: YouTubeTranscript,
+    ) -> None:
+        """중복 콘텐츠는 None 반환."""
+        mock_content_repo.exists_by_content_key.return_value = True
+
+        with patch(
+            "src.agent.domains.collector.tools.youtube_tool.get_transcript"
+        ) as mock_get:
+            mock_get.return_value = sample_transcript
+
+            result = fetch_youtube(
+                source_id="src_youtube",
+                video_url="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+                video_title="Test Video",
+                content_repo=mock_content_repo,
+            )
+
+            assert result is None
+            mock_content_repo.create.assert_not_called()
+
+    def test_fetch_youtube_no_transcript(
+        self,
+        mock_content_repo: MagicMock,
+    ) -> None:
+        """자막 없는 경우 None 반환."""
+        with patch(
+            "src.agent.domains.collector.tools.youtube_tool.get_transcript"
+        ) as mock_get:
+            mock_get.return_value = None
+
+            result = fetch_youtube(
+                source_id="src_youtube",
+                video_url="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+                video_title="No Transcript Video",
+                content_repo=mock_content_repo,
+            )
+
+            assert result is None
+            mock_content_repo.create.assert_not_called()
+
+    def test_fetch_youtube_invalid_url(
+        self,
+        mock_content_repo: MagicMock,
+    ) -> None:
+        """잘못된 URL은 ValueError."""
+        with pytest.raises(ValueError) as exc_info:
+            fetch_youtube(
+                source_id="src_youtube",
+                video_url="https://example.com/not-youtube",
+                video_title="Invalid",
+                content_repo=mock_content_repo,
+            )
+
+        assert "Invalid YouTube URL" in str(exc_info.value)
+
+    def test_fetch_youtube_content_key_generation(
+        self,
+        mock_content_repo: MagicMock,
+        sample_transcript: YouTubeTranscript,
+    ) -> None:
+        """content_key 생성 확인."""
+        mock_content_repo.exists_by_content_key.return_value = False
+
+        with patch(
+            "src.agent.domains.collector.tools.youtube_tool.get_transcript"
+        ) as mock_get:
+            mock_get.return_value = sample_transcript
+
+            fetch_youtube(
+                source_id="src_youtube",
+                video_url="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+                video_title="Test Video",
+                content_repo=mock_content_repo,
+            )
+
+            call_args = mock_content_repo.create.call_args
+            created_content = call_args[0][0]
+            assert created_content.content_key.startswith("src_youtube:")
+
+    def test_fetch_youtube_with_published_at(
+        self,
+        mock_content_repo: MagicMock,
+        sample_transcript: YouTubeTranscript,
+    ) -> None:
+        """발행일 전달."""
+        mock_content_repo.exists_by_content_key.return_value = False
+        published_at = datetime(2025, 12, 26, 10, 0, 0, tzinfo=UTC)
+
+        with patch(
+            "src.agent.domains.collector.tools.youtube_tool.get_transcript"
+        ) as mock_get:
+            mock_get.return_value = sample_transcript
+
+            result = fetch_youtube(
+                source_id="src_youtube",
+                video_url="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+                video_title="Test Video",
+                content_repo=mock_content_repo,
+                published_at=published_at,
+            )
+
+            assert result is not None
+            assert result.original_published_at == published_at
+
+    def test_fetch_youtube_from_short_url(
+        self,
+        mock_content_repo: MagicMock,
+        sample_transcript: YouTubeTranscript,
+    ) -> None:
+        """youtu.be 단축 URL 지원."""
+        mock_content_repo.exists_by_content_key.return_value = False
+
+        with patch(
+            "src.agent.domains.collector.tools.youtube_tool.get_transcript"
+        ) as mock_get:
+            mock_get.return_value = sample_transcript
+
+            result = fetch_youtube(
+                source_id="src_youtube",
+                video_url="https://youtu.be/dQw4w9WgXcQ",
+                video_title="Short URL Video",
+                content_repo=mock_content_repo,
+            )
+
+            assert result is not None
+            mock_get.assert_called_once()

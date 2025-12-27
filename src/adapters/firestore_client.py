@@ -3,6 +3,7 @@
 from typing import Any
 
 from google.cloud import firestore  # type: ignore[attr-defined]
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 
 class FirestoreClient:
@@ -77,6 +78,6 @@ class FirestoreClient:
         """
         query = self._db.collection(collection)
         for field, op, value in filters:
-            query = query.where(field, op, value)
+            query = query.where(filter=FieldFilter(field, op, value))
 
         return [doc.to_dict() for doc in query.stream()]
