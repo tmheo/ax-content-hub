@@ -1,21 +1,16 @@
 <!--
 Sync Impact Report
 ==================
-Version: 0.0.0 → 1.0.0 (MAJOR - initial constitution)
+Version: 1.0.0 → 1.0.1 (PATCH - technical clarification)
 
-Added Principles:
-- I. Test-First (NON-NEGOTIABLE)
-- II. API-First Design
-- III. Korean-First Communication
-- IV. Quality Gates
-- V. Simplicity
+Modified Items:
+- Technology Standards: LLM 모델명 수정 (gemini-3-flash-preview → gemini-2.0-flash-001)
 
-Added Sections:
-- Technology Standards (Python 3.12+, uv, Ruff)
-- Development Workflow (pre-commit, code review)
-- Governance (amendment procedure, versioning)
+Added Sections: None
 
-Templates Updated:
+Removed Sections: None
+
+Templates Status:
 - ✅ plan-template.md (Constitution Check section compatible)
 - ✅ spec-template.md (User stories align with TDD principle)
 - ✅ tasks-template.md (Test-first workflow compatible)
@@ -90,7 +85,7 @@ Follow-up TODOs: None
 - **패키지 관리**: uv (poetry, pip 사용 금지)
 - **웹 프레임워크**: FastAPI
 - **에이전트**: Google ADK + Cognee
-- **LLM**: Gemini (gemini-3-flash-preview)
+- **LLM**: Gemini (gemini-2.0-flash-001)
 - **데이터베이스**: Google Firestore
 - **인프라**: Google Cloud (Cloud Run, Cloud Scheduler, Cloud Tasks)
 - **코드 품질**: Ruff (black, isort 대체), MyPy
@@ -118,4 +113,4 @@ Follow-up TODOs: None
 - **준수 검증**: 모든 PR은 Constitution Check 섹션에서 원칙 준수 확인
 - **런타임 가이드**: 상세 개발 지침은 CLAUDE.md 참조
 
-**Version**: 1.0.0 | **Ratified**: 2025-12-26 | **Last Amended**: 2025-12-26
+**Version**: 1.0.1 | **Ratified**: 2025-12-26 | **Last Amended**: 2025-12-30
