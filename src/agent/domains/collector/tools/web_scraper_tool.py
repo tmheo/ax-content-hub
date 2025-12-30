@@ -46,7 +46,7 @@ class NetworkError(ScrapingError):
     pass
 
 
-class TimeoutError(ScrapingError):
+class ScrapingTimeoutError(ScrapingError):
     """타임아웃 예외."""
 
     pass

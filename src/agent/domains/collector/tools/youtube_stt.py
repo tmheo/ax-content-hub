@@ -6,6 +6,7 @@ yt-dlp로 오디오 추출 후 faster-whisper로 전사합니다.
 
 from __future__ import annotations
 
+import asyncio
 import os
 import tempfile
 from dataclasses import dataclass
@@ -159,32 +160,37 @@ async def extract_audio(
 
     video_url = f"https://www.youtube.com/watch?v={video_id}"
 
-    try:
+    def _download_audio() -> dict:
+        """동기 yt-dlp 다운로드 (to_thread용)."""
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(video_url, download=True)
+            return ydl.extract_info(video_url, download=True)
 
-            if info is None:
-                raise YouTubeExtractionError("Failed to get video info", video_id)
+    try:
+        # yt-dlp는 동기 라이브러리이므로 to_thread로 실행
+        info = await asyncio.to_thread(_download_audio)
 
-            duration = info.get("duration", 0)
-            audio_path = os.path.join(output_dir, f"{video_id}.m4a")
+        if info is None:
+            raise YouTubeExtractionError("Failed to get video info", video_id)
 
-            if not os.path.exists(audio_path):
-                # 확장자가 다를 수 있음
-                for ext in ["m4a", "mp3", "opus", "webm"]:
-                    alt_path = os.path.join(output_dir, f"{video_id}.{ext}")
-                    if os.path.exists(alt_path):
-                        audio_path = alt_path
-                        break
+        duration = info.get("duration", 0)
+        audio_path = os.path.join(output_dir, f"{video_id}.m4a")
 
-            logger.info(
-                "audio_extracted",
-                video_id=video_id,
-                duration=duration,
-                path=audio_path,
-            )
+        if not os.path.exists(audio_path):
+            # 확장자가 다를 수 있음
+            for ext in ["m4a", "mp3", "opus", "webm"]:
+                alt_path = os.path.join(output_dir, f"{video_id}.{ext}")
+                if os.path.exists(alt_path):
+                    audio_path = alt_path
+                    break
 
-            return audio_path, float(duration)
+        logger.info(
+            "audio_extracted",
+            video_id=video_id,
+            duration=duration,
+            path=audio_path,
+        )
+
+        return audio_path, float(duration)
 
     except yt_dlp.utils.DownloadError as e:
         error_msg = str(e).lower()
