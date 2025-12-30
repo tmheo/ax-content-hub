@@ -731,7 +731,7 @@ async def _save_scraped_content(
     """
     # content_key 생성 (멱등성)
     normalized_url = _normalize_url(scraped.url)
-    url_hash = hashlib.sha256(normalized_url.encode()).hexdigest()[:16]
+    url_hash = hashlib.sha256(normalized_url.encode()).hexdigest()
     content_key = f"{source_id}:{url_hash}"
 
     # 중복 체크
