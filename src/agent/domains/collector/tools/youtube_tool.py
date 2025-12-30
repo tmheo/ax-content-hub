@@ -1,8 +1,12 @@
 """YouTube transcript collection tool.
 
 youtube-transcript-api를 사용하여 YouTube 자막을 수집합니다.
+자막이 없는 경우 STT(음성 인식)로 폴백합니다.
 """
 
+from __future__ import annotations
+
+import asyncio
 import re
 import uuid
 from dataclasses import dataclass
@@ -11,6 +15,7 @@ from urllib.parse import parse_qs, urlparse
 
 import feedparser
 import httpx
+import structlog
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import (
     NoTranscriptFound,
@@ -18,8 +23,15 @@ from youtube_transcript_api._errors import (
     VideoUnavailable,
 )
 
+from src.agent.domains.collector.tools.youtube_stt import (
+    YouTubeExtractionError,
+    fetch_youtube_with_stt,
+)
+from src.config.settings import get_settings
 from src.models.content import Content, ProcessingStatus, generate_content_key
 from src.repositories.content_repo import ContentRepository
+
+logger = structlog.get_logger(__name__)
 
 
 @dataclass
@@ -206,7 +218,54 @@ def fetch_youtube(
         languages = ["en", "ko"]  # 기본값: 영어, 한국어
 
     transcript = get_transcript(video_id, languages=languages)
-    if transcript is None:
+
+    # 자막이 없으면 STT 폴백 시도
+    text_content: str | None = None
+    detected_language: str = "en"
+
+    if transcript is not None:
+        text_content = transcript.text
+        detected_language = transcript.language
+    else:
+        # STT 폴백 시도
+        settings = get_settings()
+        if settings.STT_ENABLED:
+            logger.info(
+                "transcript_not_found_trying_stt",
+                video_id=video_id,
+            )
+            try:
+                # 비동기 함수를 동기 컨텍스트에서 실행
+                try:
+                    loop = asyncio.get_event_loop()
+                except RuntimeError:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+
+                stt_result = loop.run_until_complete(fetch_youtube_with_stt(video_id))
+
+                if stt_result is not None:
+                    text_content = stt_result.text
+                    detected_language = stt_result.language
+                    logger.info(
+                        "stt_fallback_success",
+                        video_id=video_id,
+                        language=detected_language,
+                    )
+            except YouTubeExtractionError as e:
+                logger.warning(
+                    "stt_fallback_failed",
+                    video_id=video_id,
+                    error=str(e),
+                )
+            except Exception as e:
+                logger.warning(
+                    "stt_fallback_error",
+                    video_id=video_id,
+                    error=str(e),
+                )
+
+    if text_content is None:
         return None
 
     # 새 Content 생성
@@ -217,8 +276,8 @@ def fetch_youtube(
         content_key=content_key,
         original_url=normalized_url,
         original_title=video_title,
-        original_body=transcript.text,
-        original_language=transcript.language,
+        original_body=text_content,
+        original_language=detected_language,
         original_published_at=published_at,
         processing_status=ProcessingStatus.PENDING,
         collected_at=now,

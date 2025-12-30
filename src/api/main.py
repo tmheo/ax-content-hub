@@ -59,11 +59,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Register routers
-app.include_router(scheduler_router)
-app.include_router(internal_tasks_router)
-app.include_router(sources_router)
-app.include_router(subscriptions_router)
+# Register routers with /api prefix
+app.include_router(scheduler_router, prefix="/api")
+app.include_router(internal_tasks_router, prefix="/api")
+app.include_router(sources_router, prefix="/api")
+app.include_router(subscriptions_router, prefix="/api")
 
 
 @app.get("/health")
