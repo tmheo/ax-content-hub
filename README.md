@@ -8,9 +8,10 @@ AX(AI Transformation) 콘텐츠를 큐레이션하여 슬랙으로 전달하는 
 
 ## 주요 기능
 
-- **수집**: RSS 피드, YouTube 자막, 웹 스크래핑
+- **수집**: RSS 피드, YouTube 자막/음성인식(STT), 웹 스크래핑 (4단계 폴백)
 - **처리**: 영→한 번역, GeekNews 스타일 요약, AX 관련성 스코어링
 - **배포**: 슬랙 다이제스트 발송
+- **품질 필터링**: 관련성/카테고리/시간 기반 콘텐츠 필터링
 
 ## 아키텍처
 
@@ -30,8 +31,8 @@ AX(AI Transformation) 콘텐츠를 큐레이션하여 슬랙으로 전달하는 
 
 | 작업 | 주기 | 엔드포인트 | 설명 |
 |------|------|-----------|------|
-| 수집 | 매시간 | `POST /internal/collect` | 활성 소스에서 새 콘텐츠 수집 및 처리 |
-| 발송 | 매일 09:00 KST | `POST /internal/distribute` | 구독별 다이제스트 생성 및 Slack 발송 |
+| 수집 | 매시간 | `POST /api/internal/collect` | 활성 소스에서 새 콘텐츠 수집 및 처리 |
+| 발송 | 매일 09:00 KST | `POST /api/internal/distribute` | 구독별 다이제스트 생성 및 Slack 발송 |
 
 ### 멱등성 키
 
@@ -98,7 +99,7 @@ curl -X POST http://localhost:8080/api/sources \
   -d '{"name": "GeekNews", "type": "rss", "url": "https://news.hada.io/rss/news"}'
 
 # 수집 트리거 (로컬에서는 direct 모드로 즉시 실행)
-curl -X POST http://localhost:8080/scheduler/collect
+curl -X POST http://localhost:8080/api/internal/collect
 
 # 콘텐츠 조회
 curl http://localhost:8080/api/sources

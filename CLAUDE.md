@@ -46,7 +46,7 @@ uv run pre-commit run --all-files      # 전체 파일 검사
 
 ## 현재 구현 상태
 
-**Phase 1 완료** - MVP 파이프라인 (수집 → 처리 → 배포)
+**Phase 2 완료** - 콘텐츠 수집 확장 (Web Scraping, YouTube STT, Quality Filter)
 
 ### 인프라 (Phase 0)
 
@@ -75,7 +75,9 @@ uv run pre-commit run --all-files      # 전체 파일 검사
 | 도구 | 상태 | 설명 |
 |------|------|------|
 | rss_tool | ✅ | RSS 피드 파싱 (feedparser) |
-| youtube_tool | ✅ | YouTube 자막 추출 |
+| youtube_tool | ✅ | YouTube 자막 추출 (youtube-transcript-api) |
+| youtube_stt | ✅ | YouTube 음성 인식 (yt-dlp + faster-whisper) |
+| web_scraper_tool | ✅ | 웹 스크래핑 (4단계 폴백: Static → Dynamic → Structural → URL Pattern) |
 
 ### 처리 도구 (Processor)
 
@@ -106,11 +108,11 @@ uv run pre-commit run --all-files      # 전체 파일 검사
 | GET /health | ✅ | 헬스체크 |
 | /api/sources/* | ✅ | 소스 CRUD |
 | /api/subscriptions/* | ✅ | 구독 CRUD |
-| POST /scheduler/collect | ✅ | 수집 트리거 (Cloud Scheduler) |
-| POST /scheduler/distribute | ✅ | 배포 트리거 (Cloud Scheduler) |
-| POST /internal/tasks/process | ✅ | 콘텐츠 처리 (Cloud Tasks) |
-| POST /internal/tasks/send-digest | ✅ | 다이제스트 발송 (Cloud Tasks) |
-| POST /internal/tasks/collect-source | ✅ | 소스별 수집 (Cloud Tasks) |
+| POST /api/internal/collect | ✅ | 수집 트리거 (Cloud Scheduler) |
+| POST /api/internal/distribute | ✅ | 배포 트리거 (Cloud Scheduler) |
+| POST /api/internal/tasks/process | ✅ | 콘텐츠 처리 (Cloud Tasks) |
+| POST /api/internal/tasks/send-digest | ✅ | 다이제스트 발송 (Cloud Tasks) |
+| POST /api/internal/tasks/collect-source | ✅ | 소스별 수집 (Cloud Tasks) |
 
 ## 프로젝트 구조
 
@@ -127,7 +129,7 @@ src/
 │   ├── core/
 │   │   └── cognee_tools.py        # Cognee 메모리 도구
 │   └── domains/
-│       ├── collector/tools/       # 수집 도구 (rss, youtube)
+│       ├── collector/tools/       # 수집 도구 (rss, youtube, youtube_stt, web_scraper)
 │       ├── processor/tools/       # 처리 도구 (translate, summarize, score)
 │       └── distributor/tools/     # 배포 도구 (slack_sender)
 │
@@ -161,14 +163,14 @@ src/
 
 tests/
 ├── conftest.py                    # 공통 fixtures
-├── unit/                          # 유닛 테스트 (320 tests)
+├── unit/                          # 유닛 테스트 (400 tests)
 │   ├── adapters/
 │   ├── agent/
 │   ├── api/
 │   ├── models/
 │   ├── repositories/
 │   └── services/
-└── integration/                   # 통합 테스트 (13 tests)
+└── integration/                   # 통합 테스트 (23 tests)
     ├── test_collection_flow.py    # RSS 수집 플로우
     └── test_processing_flow.py    # 처리 파이프라인
 ```
@@ -182,7 +184,8 @@ ContentHubAgent (오케스트레이터)
 ├── CollectorAgent (수집)
 │   ├── fetch_rss        - RSS 피드 수집 (feedparser)
 │   ├── fetch_youtube    - YouTube 자막 (youtube-transcript-api)
-│   └── scrape_web       - 웹 스크래핑 (Playwright 4단계 폴백)
+│   ├── youtube_stt      - YouTube 음성 인식 (yt-dlp + faster-whisper)
+│   └── scrape_web       - 웹 스크래핑 (4단계 폴백: Static → Dynamic → Structural → URL Pattern)
 ├── ProcessorAgent (처리)
 │   ├── translate        - 영→한 번역
 │   ├── summarize        - GeekNews 스타일 요약
@@ -201,9 +204,9 @@ Cognee를 통해 ADK 에이전트에 지속적 메모리 제공:
 
 ### 스케줄러 엔드포인트
 
-- `POST /internal/collect` - 콘텐츠 수집 (Cloud Scheduler, 1시간마다)
-- `POST /internal/distribute` - 다이제스트 발송 (Cloud Scheduler, 매일 09:00)
-- `/internal/*` 경로는 Cloud Run IAM + OIDC 토큰으로 보호
+- `POST /api/internal/collect` - 콘텐츠 수집 (Cloud Scheduler, 1시간마다)
+- `POST /api/internal/distribute` - 다이제스트 발송 (Cloud Scheduler, 매일 09:00)
+- `/api/internal/*` 경로는 Cloud Run IAM + OIDC 토큰으로 보호
 
 ### 멱등성 키 규칙
 
@@ -245,6 +248,10 @@ GEMINI_MODEL=gemini-2.0-flash-001     # Gemini 모델
 COLLECTION_INTERVAL_HOURS=1           # 수집 주기 (시간)
 DIGEST_DELIVERY_TIME=09:00            # 다이제스트 발송 시간 (KST)
 MIN_RELEVANCE_SCORE=0.3               # 최소 관련성 점수
+
+# 선택 - Phase 2 설정 (Optional - Phase 2 Config)
+WHISPER_MODEL=base                    # Whisper 모델 (tiny, base, small, medium, large)
+SCRAPING_TIMEOUT=30                   # 웹 스크래핑 타임아웃 (초)
 ```
 
 ## 코드 품질 규칙
@@ -274,10 +281,3 @@ MIN_RELEVANCE_SCORE=0.3               # 최소 관련성 점수
 | Terraform | `infra/terraform/` |
 | Bootstrap | `infra/bootstrap/` |
 | ADK 에이전트 구조 | `src/agent/geniefy_agent.py` |
-
-## Active Technologies
-- Python 3.12+ (003-phase2-collection-expansion)
-- Google Firestore (기존) (003-phase2-collection-expansion)
-
-## Recent Changes
-- 003-phase2-collection-expansion: Added Python 3.12+
