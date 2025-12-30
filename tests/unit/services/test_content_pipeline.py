@@ -94,6 +94,25 @@ class TestContentPipeline:
         )
 
     @pytest.fixture
+    def sample_web_source(self) -> Source:
+        """샘플 WEB 소스."""
+        now = datetime.now(UTC)
+        return Source(
+            id="src_003",
+            name="AI Blog (No RSS)",
+            type=SourceType.WEB,
+            url="https://example.com/blog",
+            config={
+                "selector": ".blog-post",
+                "wait_for": ".content-loaded",
+                "url_pattern": r"/blog/\d{4}/",
+            },
+            is_active=True,
+            created_at=now,
+            updated_at=now,
+        )
+
+    @pytest.fixture
     def sample_content(self) -> Content:
         """샘플 콘텐츠."""
         now = datetime.now(UTC)
@@ -177,6 +196,26 @@ class TestContentPipeline:
 
         assert result["total_sources"] == 2
         assert result["collected"] == 3
+
+    def test_collect_from_web_source(
+        self,
+        content_pipeline: ContentPipeline,
+        mock_source_repo: MagicMock,
+        sample_web_source: Source,
+    ) -> None:
+        """WEB 소스에서 콘텐츠 수집."""
+        mock_source_repo.find_active_sources.return_value = [sample_web_source]
+
+        with patch.object(
+            content_pipeline,
+            "_collect_from_web",
+            return_value=["cnt_web_001", "cnt_web_002"],
+        ) as mock_collect:
+            result = content_pipeline.collect_from_sources()
+
+        assert result["total_sources"] == 1
+        assert result["collected"] == 2
+        mock_collect.assert_called_once_with(sample_web_source)
 
     def test_collect_with_error_handling(
         self,

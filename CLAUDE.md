@@ -274,3 +274,10 @@ MIN_RELEVANCE_SCORE=0.3               # 최소 관련성 점수
 | Terraform | `infra/terraform/` |
 | Bootstrap | `infra/bootstrap/` |
 | ADK 에이전트 구조 | `src/agent/geniefy_agent.py` |
+
+## Active Technologies
+- Python 3.12+ (003-phase2-collection-expansion)
+- Google Firestore (기존) (003-phase2-collection-expansion)
+
+## Recent Changes
+- 003-phase2-collection-expansion: Added Python 3.12+

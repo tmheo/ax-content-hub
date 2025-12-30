@@ -3,8 +3,10 @@
 수집 → 번역 → 요약 → 스코어링 전체 파이프라인을 관리합니다.
 """
 
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
+import nest_asyncio
 import structlog
 
 from src.adapters.gemini_client import GeminiClient
@@ -18,6 +20,9 @@ from src.repositories.source_repo import SourceRepository
 
 if TYPE_CHECKING:
     from src.adapters.tasks_client import TasksClient
+
+# 이미 실행 중인 이벤트 루프 내에서 run_until_complete 허용
+nest_asyncio.apply()
 
 logger = structlog.get_logger(__name__)
 
@@ -75,6 +80,9 @@ class ContentPipeline:
                 content_ids = self._collect_from_source(source)
                 result["collected"] += len(content_ids)
 
+                # 수집 성공 시 last_fetched_at 업데이트
+                self.source_repo.update_last_fetched(source.id, datetime.now(UTC))
+
                 # 수집된 콘텐츠에 대해 처리 작업 enqueue
                 if self.tasks_client:
                     for content_id in content_ids:
@@ -115,6 +123,8 @@ class ContentPipeline:
             return self._collect_from_rss(source)
         elif source.type == SourceType.YOUTUBE:
             return self._collect_from_youtube(source)
+        elif source.type == SourceType.WEB:
+            return self._collect_from_web(source)
         else:
             logger.warning(
                 "unsupported_source_type",
@@ -180,6 +190,45 @@ class ContentPipeline:
                 content_repo=self.content_repo,
             )
             return [content.id] if content else []
+
+    def _collect_from_web(self, source: Source) -> list[str]:
+        """WEB 소스에서 수집.
+
+        4단계 폴백 전략으로 웹 페이지에서 콘텐츠를 추출합니다.
+
+        Args:
+            source: WEB 소스
+
+        Returns:
+            수집된 콘텐츠 ID 목록
+        """
+        import asyncio
+
+        from src.agent.domains.collector.tools.web_scraper_tool import (
+            WebScraperConfig,
+            fetch_web,
+        )
+
+        # Source.config에서 스크래핑 설정 생성
+        config = WebScraperConfig.from_source_config(source.config)
+
+        # 비동기 함수를 동기 컨텍스트에서 실행
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+        contents = loop.run_until_complete(
+            fetch_web(
+                source_id=source.id,
+                source_url=str(source.url),
+                content_repo=self.content_repo,
+                config=config,
+            )
+        )
+
+        return [c.id for c in contents]
 
     def _handle_process_task(self, payload: dict[str, str]) -> None:
         """Cloud Tasks process 핸들러 (direct 모드용).

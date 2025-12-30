@@ -425,3 +425,163 @@ class TestFetchYoutube:
 
             assert result is not None
             mock_get.assert_called_once()
+
+    def test_fetch_youtube_stt_fallback_when_no_transcript(
+        self,
+        mock_content_repo: MagicMock,
+    ) -> None:
+        """자막 없을 때 STT 폴백 사용."""
+        mock_content_repo.exists_by_content_key.return_value = False
+
+        with (
+            patch(
+                "src.agent.domains.collector.tools.youtube_tool.get_transcript"
+            ) as mock_get,
+            patch(
+                "src.agent.domains.collector.tools.youtube_tool.get_settings"
+            ) as mock_settings,
+            patch(
+                "src.agent.domains.collector.tools.youtube_tool.fetch_youtube_with_stt"
+            ) as mock_stt,
+        ):
+            mock_get.return_value = None  # 자막 없음
+
+            mock_settings_instance = MagicMock()
+            mock_settings_instance.STT_ENABLED = True
+            mock_settings.return_value = mock_settings_instance
+
+            # STT 결과 mock
+            from src.agent.domains.collector.tools.youtube_stt import (
+                TranscriptionResult,
+            )
+
+            mock_stt.return_value = TranscriptionResult(
+                text="STT transcribed text from audio.",
+                language="en",
+                language_probability=0.95,
+                duration_seconds=120.0,
+            )
+
+            result = fetch_youtube(
+                source_id="src_youtube",
+                video_url="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+                video_title="No Caption Video",
+                content_repo=mock_content_repo,
+            )
+
+            assert result is not None
+            assert result.original_body == "STT transcribed text from audio."
+            mock_stt.assert_called_once_with("dQw4w9WgXcQ")
+            mock_content_repo.create.assert_called_once()
+
+    def test_fetch_youtube_stt_disabled_no_fallback(
+        self,
+        mock_content_repo: MagicMock,
+    ) -> None:
+        """STT 비활성화 시 폴백 없이 None 반환."""
+        mock_content_repo.exists_by_content_key.return_value = False
+
+        with (
+            patch(
+                "src.agent.domains.collector.tools.youtube_tool.get_transcript"
+            ) as mock_get,
+            patch(
+                "src.agent.domains.collector.tools.youtube_tool.get_settings"
+            ) as mock_settings,
+            patch(
+                "src.agent.domains.collector.tools.youtube_tool.fetch_youtube_with_stt"
+            ) as mock_stt,
+        ):
+            mock_get.return_value = None  # 자막 없음
+
+            mock_settings_instance = MagicMock()
+            mock_settings_instance.STT_ENABLED = False  # STT 비활성화
+            mock_settings.return_value = mock_settings_instance
+
+            result = fetch_youtube(
+                source_id="src_youtube",
+                video_url="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+                video_title="No Caption Video",
+                content_repo=mock_content_repo,
+            )
+
+            assert result is None
+            mock_stt.assert_not_called()
+            mock_content_repo.create.assert_not_called()
+
+    def test_fetch_youtube_stt_fallback_fails(
+        self,
+        mock_content_repo: MagicMock,
+    ) -> None:
+        """STT 폴백도 실패하면 None 반환."""
+        mock_content_repo.exists_by_content_key.return_value = False
+
+        with (
+            patch(
+                "src.agent.domains.collector.tools.youtube_tool.get_transcript"
+            ) as mock_get,
+            patch(
+                "src.agent.domains.collector.tools.youtube_tool.get_settings"
+            ) as mock_settings,
+            patch(
+                "src.agent.domains.collector.tools.youtube_tool.fetch_youtube_with_stt"
+            ) as mock_stt,
+        ):
+            mock_get.return_value = None  # 자막 없음
+
+            mock_settings_instance = MagicMock()
+            mock_settings_instance.STT_ENABLED = True
+            mock_settings.return_value = mock_settings_instance
+
+            mock_stt.return_value = None  # STT도 실패
+
+            result = fetch_youtube(
+                source_id="src_youtube",
+                video_url="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+                video_title="No Caption Video",
+                content_repo=mock_content_repo,
+            )
+
+            assert result is None
+            mock_stt.assert_called_once()
+            mock_content_repo.create.assert_not_called()
+
+    def test_fetch_youtube_stt_exception_handled(
+        self,
+        mock_content_repo: MagicMock,
+    ) -> None:
+        """STT 예외 발생 시 None 반환."""
+        mock_content_repo.exists_by_content_key.return_value = False
+
+        with (
+            patch(
+                "src.agent.domains.collector.tools.youtube_tool.get_transcript"
+            ) as mock_get,
+            patch(
+                "src.agent.domains.collector.tools.youtube_tool.get_settings"
+            ) as mock_settings,
+            patch(
+                "src.agent.domains.collector.tools.youtube_tool.fetch_youtube_with_stt"
+            ) as mock_stt,
+        ):
+            mock_get.return_value = None  # 자막 없음
+
+            mock_settings_instance = MagicMock()
+            mock_settings_instance.STT_ENABLED = True
+            mock_settings.return_value = mock_settings_instance
+
+            from src.agent.domains.collector.tools.youtube_stt import (
+                YouTubeExtractionError,
+            )
+
+            mock_stt.side_effect = YouTubeExtractionError("Age restricted")
+
+            result = fetch_youtube(
+                source_id="src_youtube",
+                video_url="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+                video_title="Age Restricted Video",
+                content_repo=mock_content_repo,
+            )
+
+            assert result is None
+            mock_content_repo.create.assert_not_called()

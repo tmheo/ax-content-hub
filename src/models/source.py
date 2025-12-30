@@ -15,6 +15,7 @@ class SourceType(str, Enum):
 
     RSS = "rss"
     YOUTUBE = "youtube"
+    WEB = "web"
 
 
 class Source(BaseModel):
